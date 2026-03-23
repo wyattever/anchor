@@ -1,48 +1,50 @@
 /**
- * ANCHOR CORE v9.3.2 - Deep Crawler
+ * ANCHOR CORE v9.5.0 - Network Search Engine
  */
 
-function reconcileRegistry() {
-  const props = PropertiesService.getScriptProperties().getProperties();
-  const report = [];
+/**
+ * FIND FILE IN REGISTRY
+ * Scans a specific registry folder for a filename (fuzzy match).
+ */
+function findFileInRegistry(registryKey, fileName) {
+  const folderId = PropertiesService.getScriptProperties().getProperty(registryKey);
+  if (!folderId) return { error: "Registry key " + registryKey + " not found." };
   
-  console.log("⚓ SCANNING REGISTRY...");
-  
-  for (const key in props) {
-    if (key.endsWith('_ID') && props[key].length > 20 && !props[key].includes(' ')) {
-      try {
-        // Try to get as Folder first, then File
-        let resource;
-        try { resource = DriveApp.getFolderById(props[key]); }
-        catch(e) { resource = DriveApp.getFileById(props[key]); }
-        
-        report.push("✅ VERIFIED: " + key + " -> " + resource.getName());
-      } catch (e) {
-        report.push("❌ FAILED: " + key + " (" + props[key] + ")");
-      }
-    }
-  }
-  return report;
-}
-
-function getFolderMap(folderId) {
   try {
     const folder = DriveApp.getFolderById(folderId);
-    const subfolders = folder.getFolders();
-    const files = folder.getFiles();
+    const files = folder.getFilesByName(fileName);
     
-    const map = { name: folder.getName(), folders: [], files: [] };
-
-    while (subfolders.hasNext()) {
-      const sub = subfolders.next();
-      map.folders.push({ name: sub.getName(), id: sub.getId() });
-    }
-    while (files.hasNext()) {
+    if (files.hasNext()) {
       const file = files.next();
-      map.files.push({ name: file.getName(), id: file.getId() });
+      return { name: file.getName(), id: file.getId(), url: file.getUrl() };
     }
-    return map;
+    
+    // Fallback: Partial match search
+    const partials = folder.searchFiles("title contains '" + fileName + "'");
+    if (partials.hasNext()) {
+      const p = partials.next();
+      return { name: p.getName(), id: p.getId(), url: p.getUrl(), note: "Partial match" };
+    }
+    
+    return { error: "File not found in " + folder.getName() };
   } catch (e) {
-    return { error: "Unreachable: " + folderId };
+    return { error: e.message };
   }
+}
+
+/**
+ * LIST PROJECT LOGS
+ * Specifically targets the active project folders.
+ */
+function listRecentLogs(count = 5) {
+  const activeId = PropertiesService.getScriptProperties().getProperty('ACTIVE_PROJECTS_ID');
+  const folder = DriveApp.getFolderById(activeId);
+  const files = folder.getFiles();
+  const logs = [];
+  
+  while (files.hasNext() && logs.length < count) {
+    const file = files.next();
+    logs.push({ name: file.getName(), id: file.getId(), date: file.getLastUpdated() });
+  }
+  return logs.sort((a, b) => b.date - a.date);
 }
