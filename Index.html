@@ -7,14 +7,19 @@
 </head>
 <body>
   <div id="iphone-se-container">
-    <div class="header-main">
-      <div style="font-weight:500; font-size:16px; color:var(--google-blue);">ANCHOR v10.1.0</div>
-      <span class="material-symbols-outlined header-sync-btn" onclick="runDiscovery()">directory_sync</span>
-    </div>
+    <div class="header-consolidated">
+      <div class="status-group">
+        <div class="status-light"></div>
+        <span class="status-label">MODEL</span>
+      </div>
 
-    <div class="header-status-row">
-      <div style="display:flex;align-items:center;"><div class="status-light"></div><span style="font-size:9px;margin-left:6px;color:var(--text-light);">MODEL</span></div>
-      <div style="display:flex;align-items:center;"><span style="font-size:9px;margin-right:6px;color:var(--text-light);">REPO</span><div class="status-light"></div></div>
+      <div class="header-title">ANCHOR v10.1.1</div>
+
+      <div class="status-group">
+        <span class="material-symbols-outlined header-sync-btn" onclick="runDiscovery()">directory_sync</span>
+        <span class="status-label">VAULT</span>
+        <div class="status-light"></div>
+      </div>
     </div>
 
     <div class="btn-row" id="agent-row"></div>
@@ -46,7 +51,7 @@
   </div>
 
   <script>
-    const UI_VERSION = 'v10.1.0'; 
+    const UI_VERSION = 'v10.1.1'; 
     let activeAgent = ''; let activeId = ''; let activeFormat = 'chat';
 
     function initAgentButtons() {

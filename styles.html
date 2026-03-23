@@ -24,7 +24,7 @@
  #iphone-se-container {
    width: 375px;
    height: 667px;
-   margin: 50px 0; /* 50px Top and Bottom Margin */
+   margin: 50px 0;
    background: var(--bg);
    display: flex;
    flex-direction: column;
@@ -34,31 +34,37 @@
    overflow: hidden;
  }
 
- .header-main {
-   padding: 16px 16px 8px 16px;
+ .header-consolidated {
+   padding: 16px;
    display: flex;
-   justify-content: center;
    align-items: center;
+   justify-content: space-between;
+   border-bottom: 1px solid var(--border);
    background: var(--bg);
+   position: relative;
  }
 
- .header-status-row {
-   padding: 0 20px 12px 20px;
-   display: flex;
-   justify-content: space-between;
-   align-items: center;
-   border-bottom: 1px solid var(--border);
+ .status-group { display: flex; align-items: center; gap: 6px; }
+ .status-light { width: 8px; height: 8px; border-radius: 50%; background: var(--success-green); }
+ .status-label { font-size: 9px; color: var(--text-light); font-weight: 500; }
+
+ .header-title {
+   position: absolute;
+   left: 50%;
+   transform: translateX(-50%);
+   font-weight: 500;
+   font-size: 14px;
+   color: var(--google-blue);
+   white-space: nowrap;
  }
 
  .header-sync-btn {
    cursor: pointer;
    color: var(--google-blue);
-   font-size: 22px !important;
-   margin-left: 50px; /* Specific 50px Offset */
+   font-size: 20px !important;
+   margin-right: 20px; /* 20px to the left of VAULT group */
  }
 
- .status-light { width: 8px; height: 8px; border-radius: 50%; background: var(--success-green); }
- 
  .btn-row {
    display: flex;
    align-items: center;
@@ -74,11 +80,7 @@
    padding: 8px 12px;
    font-size: 11px;
    font-weight: 500;
-   display: flex;
-   align-items: center;
-   justify-content: center;
    flex: 1;
-   transition: all 0.2s ease;
    cursor: pointer;
  }
  .btn-row button.active {
