@@ -18,15 +18,19 @@
    flex-direction: column;
    align-items: center;
    min-height: 100vh;
-   overflow-y: auto; /* Allow scrolling if the screen is shorter than the UI + margins */
+   overflow-x: hidden;
    font-family: 'Google Sans', Roboto, Helvetica, Arial, sans-serif;
+   /* Prevent overscroll bounce on mobile */
+   position: fixed;
+   width: 100%;
+   height: 100%;
  }
 
  #iphone-se-container {
    width: 375px;
    height: 667px;
-   margin-top: 50px;    /* 50px Top Whitespace */
-   margin-bottom: 50px; /* 50px Bottom Whitespace */
+   margin-top: 20px;    /* Reduced to 20px */
+   margin-bottom: 50px; 
    background: var(--bg);
    display: flex;
    flex-direction: column;
@@ -34,7 +38,8 @@
    box-shadow: 0 12px 28px rgba(0,0,0,0.15);
    border: 1px solid var(--border);
    overflow: hidden;
-   flex-shrink: 0; /* Prevents the container from squishing */
+   flex-shrink: 0;
+   border-radius: 8px; /* Slight rounding for app feel */
  }
 
  .header-consolidated {
