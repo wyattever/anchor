@@ -1,0 +1,42 @@
+<script>
+  const COMMAND_MAP = {
+    '/list-txt':  'txt',
+    '/list-csv':  'csv',
+    '/list-json': 'json',
+    '/list-all':  null
+  };
+
+  function handleSlashCommand(cmd, folderId) {
+    if (!(cmd in COMMAND_MAP)) {
+      addBubble('Unknown command: ' + cmd, 'received');
+      return;
+    }
+
+    document.getElementById('thinking').style.visibility = "visible";
+
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById('thinking').style.visibility = "hidden";
+
+      if (res.status !== 'OK' || !res.files) {
+        addBubble('Error: ' + (res.message || 'Unknown error'), 'received');
+        return;
+      }
+
+      if (res.files.length === 0) {
+        const ext = COMMAND_MAP[cmd] ? '.' + COMMAND_MAP[cmd] : '';
+        addBubble('No ' + ext + ' files found in ' + activeAgent + "'s folder.", 'received');
+        return;
+      }
+
+      const lines = res.files.map(f =>
+        '<a href="https://drive.google.com/file/d/' + f.fileId + '/view" target="_blank">' +
+        f.name + '</a>'
+      );
+      addBubble(lines.join('<br>'), 'received', true);
+
+    }).withFailureHandler(err => {
+      document.getElementById('thinking').style.visibility = "hidden";
+      addBubble('Error: ' + err.message, 'received');
+    }).listFiles({ folderId: folderId, filter: COMMAND_MAP[cmd] });
+  }
+</script>

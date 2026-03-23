@@ -1,0 +1,104 @@
+<script>
+  const UI_VERSION = 'v10.1.7';
+  let activeAgent = ''; let activeId = ''; let activeFormat = 'chat';
+
+  function initAgentButtons() {
+    google.script.run.withSuccessHandler(agents => {
+      const container = document.getElementById('agent-row');
+      container.innerHTML = '';
+      agents.forEach((agent, index) => {
+        const btn = document.createElement('button');
+        if (index === 0) { btn.classList.add('active'); activeAgent = agent.name; activeId = agent.id; }
+        btn.onclick = () => setAgent(agent.name, agent.id, btn);
+        btn.innerHTML = '<span class="material-symbols-outlined">' + agent.icon + '</span>';
+        container.appendChild(btn);
+      });
+      document.getElementById('msg-input').placeholder = "Message " + activeAgent;
+    }).getAgentConfig();
+  }
+
+  function runDiscovery() {
+    document.getElementById('thinking').style.visibility = "visible";
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById('thinking').style.visibility = "hidden";
+      addBubble(res, 'received');
+      initAgentButtons();
+    }).RECONCILE_VAULT_MAP();
+  }
+
+  function clearFeed() {
+    document.getElementById('chat-feed').innerHTML = '';
+  }
+
+  function setAgent(name, id, btn) {
+    activeAgent = name; activeId = id;
+    document.querySelectorAll('#agent-row button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('msg-input').placeholder = "Message " + name;
+  }
+
+  function setFormat(type, btn) {
+    activeFormat = type;
+    document.querySelectorAll('.btn-row button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const topicRow = document.getElementById('topic-row');
+    type === 'chat' ? topicRow.classList.add('hidden') : topicRow.classList.remove('hidden');
+  }
+
+  function addBubble(text, type, isHtml = false) {
+    const feed = document.getElementById('chat-feed');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + type;
+    if (isHtml) {
+      bubble.innerHTML = text;
+    } else {
+      bubble.innerText = text;
+    }
+    feed.appendChild(bubble);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function sendMessage() {
+    const msg   = document.getElementById('msg-input').value.trim();
+    const topic = document.getElementById('topic-input').value.trim();
+    if (!msg) return;
+
+    // ── Slash command intercept ─────────────────────────────────────────────
+    if (msg.startsWith('/')) {
+      addBubble(msg, 'sent');
+      document.getElementById('msg-input').value = "";
+      handleSlashCommand(msg.toLowerCase(), activeId);
+      return;
+    }
+
+    // ── Normal message flow ─────────────────────────────────────────────────
+    addBubble(msg, 'sent');
+    document.getElementById('msg-input').value   = "";
+    document.getElementById('topic-input').value = "";
+    document.getElementById('thinking').style.visibility = "visible";
+
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById('thinking').style.visibility = "hidden";
+      if (res && res.status === 'OK' && res.fileId && res.name) {
+        const url  = 'https://drive.google.com/file/d/' + res.fileId + '/view';
+        const html = '<a href="' + url + '" target="_blank">' + res.name + '</a> created.';
+        addBubble(html, 'received', true);
+      } else if (res && res.status === 'OK' && res.response) {
+        addBubble(res.response, 'received');
+      } else {
+        addBubble('Error: ' + JSON.stringify(res), 'received');
+      }
+    }).withFailureHandler(err => {
+      document.getElementById('thinking').style.visibility = "hidden";
+      addBubble('Error: ' + err.message, 'received');
+    }).processMessage({
+      agent:   activeAgent,
+      id:      activeId,
+      format:  activeFormat,
+      topic:   topic,
+      message: msg
+    });
+  }
+
+  window.onload = initAgentButtons;
+</script>
