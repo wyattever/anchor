@@ -61,14 +61,14 @@
       }).getAgentConfig();
     }
 
-    function runDiscovery() {
-      document.getElementById('thinking').style.visibility = "visible";
-      google.script.run.withSuccessHandler(res => {
-        document.getElementById('thinking').style.visibility = "hidden";
-        addBubble(res, 'received');
-        initAgentButtons(); // Refresh buttons in case IDs changed
-      }).RECONCILE_NETWORK();
-    }
+function runDiscovery() {
+  document.getElementById('thinking').style.visibility = "visible";
+  google.script.run.withSuccessHandler(res => {
+    document.getElementById('thinking').style.visibility = "hidden";
+    addBubble(res, 'received');
+    initAgentButtons();
+  }).RECONCILE_VAULT_MAP();
+}
 
     function setAgent(name, id, btn) {
       activeAgent = name; activeId = id;
