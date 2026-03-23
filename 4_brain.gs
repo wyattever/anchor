@@ -1,5 +1,5 @@
 /**
- * ANCHOR CORE v9.4.1 - Context-Aware Reasoning
+ * ANCHOR CORE v9.8.0 - Vault-Centric Reasoning
  */
 
 function generateSystemPrompt() {
@@ -10,28 +10,23 @@ function generateSystemPrompt() {
   
 ### SYSTEM CONTEXT
 - GCP Project: ${props.GCP_PROJECT_ID}
-- Vault: ${props.VAULT_ID}
+- Primary Vault (ANCHOR-VAULT): ${props.VAULT_ID}
 - Status: ${memory.status || "ACTIVE"}
-- Last Sync: ${memory.last_sync}
+- Version: ${memory.anchor_version}
 
-### REGISTRY ACCESS
+### VAULT REGISTRIES
 - Network Registry: ${props.NETWORK_REGISTRY_ID}
 - Active Projects: ${props.ACTIVE_PROJECTS_ID}
-- Temporal Lake: ${props.TEMPORAL_LAKE_ID}
+- Archives: ${props.ARCHIVE_ID}
 
-Operate with technical precision. You have access to tools via the ANCHOR bridge.
-Follow the ANCHOR Protocol without exception.`;
+All ingestion tasks must be directed to the ANCHOR-VAULT sub-folders. 
+Operate with technical precision and follow the ANCHOR Protocol.`;
 }
 
 function processReasoning(userPrompt) {
   const systemContext = generateSystemPrompt();
-  
-  const refinedPayload = {
+  return routeRequest({
     prompt: userPrompt,
-    context: systemContext,
-    model: "gemini-2.5-flash-lite"
-  };
-  
-  console.log("⚓ BRAIN: Context injected. Dispatching...");
-  return routeRequest(refinedPayload);
+    context: systemContext
+  });
 }
