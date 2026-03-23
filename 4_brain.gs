@@ -1,23 +1,37 @@
 /**
- * ANCHOR CORE v9.0.0 - Reasoning Engine
- * Derived from v8 source: 8_brain
+ * ANCHOR CORE v9.4.1 - Context-Aware Reasoning
  */
 
 function generateSystemPrompt() {
   const props = PropertiesService.getScriptProperties().getProperties();
+  const memory = getPhysicalMemory() || {};
+  
   return `You are PANTO, the Primary Agent for Network Task Orchestration.
-  Your current GCP Project is ${props.GCP_PROJECT_ID}.
-  Your Vault ID is ${props.VAULT_ID}.
-  Operate with technical precision and follow the ANCHOR Protocol.`;
+  
+### SYSTEM CONTEXT
+- GCP Project: ${props.GCP_PROJECT_ID}
+- Vault: ${props.VAULT_ID}
+- Status: ${memory.status || "ACTIVE"}
+- Last Sync: ${memory.last_sync}
+
+### REGISTRY ACCESS
+- Network Registry: ${props.NETWORK_REGISTRY_ID}
+- Active Projects: ${props.ACTIVE_PROJECTS_ID}
+- Temporal Lake: ${props.TEMPORAL_LAKE_ID}
+
+Operate with technical precision. You have access to tools via the ANCHOR bridge.
+Follow the ANCHOR Protocol without exception.`;
 }
 
 function processReasoning(userPrompt) {
   const systemContext = generateSystemPrompt();
-  const refinedPrompt = `### SYSTEM INSTRUCTION\n${systemContext}\n\n### USER INPUT\n${userPrompt}`;
   
-  // Dispatch to the core bridge
-  return routeRequest({
-    prompt: refinedPrompt,
-    context: "ANCHOR_REASONING_v9"
-  });
+  const refinedPayload = {
+    prompt: userPrompt,
+    context: systemContext,
+    model: "gemini-2.5-flash-lite"
+  };
+  
+  console.log("⚓ BRAIN: Context injected. Dispatching...");
+  return routeRequest(refinedPayload);
 }
