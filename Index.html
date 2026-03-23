@@ -9,12 +9,11 @@
   <div id="iphone-se-container">
     <div class="header">
       <div style="display:flex;align-items:center;"><div class="status-light"></div><span style="font-size:10px;margin-left:6px;color:var(--text-light);">MODEL</span></div>
-      <div style="text-align:center;"><div style="font-weight:500;font-size:14px;">ANCHOR</div><div id="version-display" style="font-size:9px;color:var(--text-light);">v10.0.2</div></div>
+      <div style="text-align:center;"><div style="font-weight:500;font-size:14px;">ANCHOR</div><div id="version-display" style="font-size:9px;color:var(--text-light);">v10.0.3</div></div>
       <div style="display:flex;align-items:center;"><span style="font-size:10px;margin-right:6px;color:var(--text-light);">REPO</span><div class="status-light"></div></div>
     </div>
 
-    <div class="btn-row" id="agent-row">
-      </div>
+    <div class="btn-row" id="agent-row"></div>
 
     <div class="btn-row" id="format-row" style="padding-top:0;">
       <div style="display:flex; justify-content: space-between; flex: 1;">
@@ -35,8 +34,8 @@
         <div style="width:24px;"></div>
       </div>
       <div class="footer-row">
-        <span class="material-symbols-outlined" style="color:var(--text-light);" onclick="clearAll()">delete_sweep</span>
-        <div class="input-container"><input type="text" id="msg-input" placeholder="Loading Agents..." onkeypress="if(event.key==='Enter') sendMessage()"></div>
+        <span class="material-symbols-outlined" style="color:var(--text-light);" onclick="runDiscovery()" title="Remap Network">sync_saved_locally</span>
+        <div class="input-container"><input type="text" id="msg-input" placeholder="Loading..." onkeypress="if(event.key==='Enter') sendMessage()"></div>
         <span class="material-symbols-outlined" style="color:var(--google-blue);" onclick="sendMessage()">send</span>
       </div>
       <div id="thinking" class="thinking-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
@@ -44,30 +43,31 @@
   </div>
 
   <script>
-    const UI_VERSION = 'v10.0.2'; 
-    let activeAgent = ''; 
-    let activeId = ''; 
-    let activeFormat = 'chat';
+    const UI_VERSION = 'v10.0.3'; 
+    let activeAgent = ''; let activeId = ''; let activeFormat = 'chat';
 
     function initAgentButtons() {
-      google.script.run
-        .withSuccessHandler(agents => {
-          const container = document.getElementById('agent-row');
-          container.innerHTML = ''; 
-          agents.forEach((agent, index) => {
-            const btn = document.createElement('button');
-            if (index === 0) { 
-              btn.classList.add('active');
-              activeAgent = agent.name;
-              activeId = agent.id;
-            }
-            btn.onclick = () => setAgent(agent.name, agent.id, btn);
-            btn.innerHTML = '<span class="material-symbols-outlined">' + agent.icon + '</span>';
-            container.appendChild(btn);
-          });
-          document.getElementById('msg-input').placeholder = "Message " + activeAgent;
-        })
-        .getAgentConfig();
+      google.script.run.withSuccessHandler(agents => {
+        const container = document.getElementById('agent-row');
+        container.innerHTML = ''; 
+        agents.forEach((agent, index) => {
+          const btn = document.createElement('button');
+          if (index === 0) { btn.classList.add('active'); activeAgent = agent.name; activeId = agent.id; }
+          btn.onclick = () => setAgent(agent.name, agent.id, btn);
+          btn.innerHTML = '<span class="material-symbols-outlined">' + agent.icon + '</span>';
+          container.appendChild(btn);
+        });
+        document.getElementById('msg-input').placeholder = "Message " + activeAgent;
+      }).getAgentConfig();
+    }
+
+    function runDiscovery() {
+      document.getElementById('thinking').style.visibility = "visible";
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble(res, 'received');
+        initAgentButtons(); // Refresh buttons in case IDs changed
+      }).RECONCILE_NETWORK();
     }
 
     function setAgent(name, id, btn) {
@@ -89,46 +89,30 @@
       const feed = document.getElementById('chat-feed');
       const container = document.createElement('div');
       container.className = 'message-container ' + (type === 'sent' ? 'right' : 'left');
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      container.innerHTML = '<div class="bubble ' + type + '">' + text + '</div><div class="timestamp">' + time + '</div>';
+      container.innerHTML = '<div class="bubble ' + type + '">' + text + '</div>';
       feed.appendChild(container);
       feed.scrollTop = feed.scrollHeight;
     }
 
     function sendMessage() {
       const msg = document.getElementById('msg-input').value;
-      const topic = document.getElementById('topic-input').value;
       if (!msg) return;
-
       addBubble(msg, 'sent');
       document.getElementById('msg-input').value = "";
       document.getElementById('thinking').style.visibility = "visible";
-
-      google.script.run
-        .withSuccessHandler(res => {
-          document.getElementById('thinking').style.visibility = "hidden";
-          let outputText = (res && res.status === 'OK') ? (res.response || "Action Success: " + (res.fileId || "")) : "Error: " + JSON.stringify(res);
-          addBubble(outputText, "received");
-        })
-        .withFailureHandler(err => {
-          document.getElementById('thinking').style.visibility = "hidden";
-          addBubble("System Error: " + err, "received");
-        })
-        .processMessage({ agent: activeAgent, id: activeId, format: activeFormat, topic: topic, message: msg, ui_version: UI_VERSION });
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        let outputText = (res && res.status === 'OK') ? (res.response || "Action Success: " + (res.fileId || "")) : "Error: " + JSON.stringify(res);
+        addBubble(outputText, "received");
+      }).processMessage({ agent: activeAgent, id: activeId, format: activeFormat, topic: document.getElementById('topic-input').value, message: msg });
     }
 
     function triggerCrawl() {
       document.getElementById('thinking').style.visibility = "visible";
-      google.script.run
-        .withSuccessHandler(res => {
-          document.getElementById('thinking').style.visibility = "hidden";
-          addBubble(res, 'received');
-        })
-        .CRAWL_VAULT();
-    }
-
-    function clearAll() {
-      document.getElementById('chat-feed').innerHTML = "";
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble(res, 'received');
+      }).CRAWL_VAULT();
     }
 
     window.onload = initAgentButtons;
