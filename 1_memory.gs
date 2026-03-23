@@ -1,5 +1,5 @@
 /**
- * ANCHOR CORE v9.4.2 - Memory Controller (Iterator Patch)
+ * ANCHOR CORE v9.4.3 - Memory Controller (Atomic Patch)
  */
 
 function getPhysicalMemory() {
@@ -8,8 +8,8 @@ function getPhysicalMemory() {
   const files = vault.getFilesByName('agent_memory.json');
   
   if (files.hasNext()) {
-    const file = files.next(); // CRITICAL: Move to the first element in the iterator
-    const content = file.getContentText();
+    const actualFile = files.next(); // Explicitly extract the File object
+    const content = actualFile.getContentText(); // Call on the File, not the Iterator
     return content ? JSON.parse(content) : {};
   }
   return {};
@@ -24,7 +24,8 @@ function updatePhysicalMemory(newData) {
   const updatedMemory = { ...memory, ...newData, last_sync: new Date().toISOString() };
   
   if (files.hasNext()) {
-    files.next().setContent(JSON.stringify(updatedMemory, null, 2));
+    const actualFile = files.next();
+    actualFile.setContent(JSON.stringify(updatedMemory, null, 2));
   } else {
     vault.createFile('agent_memory.json', JSON.stringify(updatedMemory, null, 2), MimeType.PLAIN_TEXT);
   }
