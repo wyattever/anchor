@@ -1,0 +1,10 @@
+**/**
+!Index.html
+!styles.html
+!appsscript.json
+!*.gs
+!*.js
+.claspignore
+.git/**
+node_modules/**
+**/*.md

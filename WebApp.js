@@ -1,8 +1,4 @@
-/**
-* WebApp.gs — ANCHOR v10.0.5 | UI Controller
-*/
-
-const UI_VERSION = 'v10.0.5';
+const UI_VERSION = 'v10.0.7';
 
 function doGet() {
  return HtmlService.createTemplateFromFile('Index')
@@ -18,9 +14,9 @@ function include(filename) {
 
 function getAgentConfig() {
  const agents = [
-   { name: 'Panto', key: 'PANTO', icon: 'neurology' },
-   { name: 'Lexicona', key: 'LEXICONA', icon: 'manage_accounts' },
-   { name: 'Synapse', key: 'SYNAPSE', icon: 'code' }
+   { name: 'Panto',    key: '04-PAN-ANA-001', icon: 'neurology' },
+   { name: 'Lexicona', key: '05-LEX-RES-777', icon: 'manage_accounts' },
+   { name: 'Synapse',  key: '06-SYN-ARC-555', icon: 'code' }
  ];
  return agents.map(a => ({
    name: a.name,

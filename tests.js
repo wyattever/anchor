@@ -59,3 +59,46 @@ function RUN_ANCHOR_DIAGNOSTICS() {
   console.log("=".repeat(40));
   console.log("FINAL STATUS: " + (Object.values(results).every(v => v) ? "OPERATIONAL" : "DEGRADED"));
 }
+
+/**
+ * ONE-OFF_VAULT_SYNC
+ * Scans the physical ANCHOR-VAULT and populates the VAULT_MAP sheet.
+ */
+function ONE_OFF_VAULT_SYNC() {
+  const VAULT_ID = "1PfiQ9BZ9pk2kiVJ8HUsEt4XenMy4ZkiE";
+  const mapSheetId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET_ID');
+  
+  if (!mapSheetId) {
+    throw new Error("VAULT_MAP_SHEET_ID not found. Run bootstrapVaultMap() first.");
+  }
+
+  console.log("⚓ Starting One-Off Vault Discovery...");
+  const vault = DriveApp.getFolderById(VAULT_ID);
+  const folders = vault.getFolders();
+  const ss = SpreadsheetApp.openById(mapSheetId);
+  const sheet = ss.getSheetByName('VAULT_MAP');
+  
+  // Clear existing data (except header) to prevent duplicates during this one-off sync
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).clearContent();
+  }
+
+  let count = 0;
+  const timestamp = new Date().toISOString();
+
+  while (folders.hasNext()) {
+    const folder = folders.next();
+    const name = folder.getName();
+    const id = folder.getId();
+    
+    // Log to console for your records
+    console.log(`📍 Found: ${name.padEnd(30)} ID: ${id}`);
+    
+    // Write to VAULT_MAP Sheet
+    sheet.appendRow([name.toUpperCase(), id, timestamp, 'ACTIVE']);
+    count++;
+  }
+
+  console.log(`✅ SYNC COMPLETE. ${count} folders registered in VAULT_MAP.`);
+  return `Successfully indexed ${count} folders.`;
+}
