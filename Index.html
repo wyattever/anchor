@@ -54,13 +54,13 @@
   </div>
 
   <script>
-    const UI_VERSION = 'v10.1.7'; 
+    const UI_VERSION = 'v10.1.7';
     let activeAgent = ''; let activeId = ''; let activeFormat = 'chat';
 
     function initAgentButtons() {
       google.script.run.withSuccessHandler(agents => {
         const container = document.getElementById('agent-row');
-        container.innerHTML = ''; 
+        container.innerHTML = '';
         agents.forEach((agent, index) => {
           const btn = document.createElement('button');
           if (index === 0) { btn.classList.add('active'); activeAgent = agent.name; activeId = agent.id; }
@@ -100,27 +100,100 @@
       type === 'chat' ? topicRow.classList.add('hidden') : topicRow.classList.remove('hidden');
     }
 
-    function addBubble(text, type) {
+    function addBubble(text, type, isHtml = false) {
       const feed = document.getElementById('chat-feed');
       const bubble = document.createElement('div');
       bubble.className = 'bubble ' + type;
-      bubble.innerText = text;
+      if (isHtml) {
+        bubble.innerHTML = text;
+      } else {
+        bubble.innerText = text;
+      }
       feed.appendChild(bubble);
       feed.scrollTop = feed.scrollHeight;
     }
 
-    function sendMessage() {
-      const msg = document.getElementById('msg-input').value;
-      const topic = document.getElementById('topic-input').value;
-      if (!msg) return;
-      addBubble(msg, 'sent');
-      document.getElementById('msg-input').value = "";
-      document.getElementById('topic-input').value = "";
+    function handleSlashCommand(cmd, folderId) {
+      const filterMap = {
+        '/list-txt':  'txt',
+        '/list-csv':  'csv',
+        '/list-json': 'json',
+        '/list-all':  null
+      };
+
+      if (!(cmd in filterMap)) {
+        addBubble('Unknown command: ' + cmd, 'received');
+        return;
+      }
+
       document.getElementById('thinking').style.visibility = "visible";
+
       google.script.run.withSuccessHandler(res => {
         document.getElementById('thinking').style.visibility = "hidden";
-        addBubble(res.response || "Success", "received");
-      }).processMessage({ agent: activeAgent, id: activeId, format: activeFormat, topic: topic, message: msg });
+
+        if (res.status !== 'OK' || !res.files) {
+          addBubble('Error: ' + (res.message || 'Unknown error'), 'received');
+          return;
+        }
+
+        if (res.files.length === 0) {
+          const ext = filterMap[cmd] ? '.' + filterMap[cmd] : '';
+          addBubble('No ' + (ext || '') + ' files found in ' + activeAgent + "'s folder.", 'received');
+          return;
+        }
+
+        const lines = res.files.map(f =>
+          '<a href="https://drive.google.com/file/d/' + f.fileId + '/view" target="_blank">' +
+          f.name + '</a>'
+        );
+        addBubble(lines.join('<br>'), 'received', true);
+
+      }).withFailureHandler(err => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble('Error: ' + err.message, 'received');
+      }).listFiles({ folderId: folderId, filter: filterMap[cmd] });
+    }
+
+    function sendMessage() {
+      const msg   = document.getElementById('msg-input').value.trim();
+      const topic = document.getElementById('topic-input').value.trim();
+      if (!msg) return;
+
+      // ── Slash command intercept ───────────────────────────────────────────
+      if (msg.startsWith('/')) {
+        addBubble(msg, 'sent');
+        document.getElementById('msg-input').value = "";
+        handleSlashCommand(msg.toLowerCase(), activeId);
+        return;
+      }
+
+      // ── Normal message flow ───────────────────────────────────────────────
+      addBubble(msg, 'sent');
+      document.getElementById('msg-input').value   = "";
+      document.getElementById('topic-input').value = "";
+      document.getElementById('thinking').style.visibility = "visible";
+
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        if (res && res.status === 'OK' && res.fileId && res.name) {
+          const url  = 'https://drive.google.com/file/d/' + res.fileId + '/view';
+          const html = '<a href="' + url + '" target="_blank">' + res.name + '</a> created.';
+          addBubble(html, 'received', true);
+        } else if (res && res.status === 'OK' && res.response) {
+          addBubble(res.response, 'received');
+        } else {
+          addBubble('Error: ' + JSON.stringify(res), 'received');
+        }
+      }).withFailureHandler(err => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble('Error: ' + err.message, 'received');
+      }).processMessage({
+        agent:   activeAgent,
+        id:      activeId,
+        format:  activeFormat,
+        topic:   topic,
+        message: msg
+      });
     }
 
     window.onload = initAgentButtons;
