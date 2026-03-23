@@ -1,37 +1,48 @@
 /**
- * ANCHOR CORE v9.2.1 - Resilient Crawler
+ * ANCHOR CORE v9.3.2 - Deep Crawler
  */
 
 function reconcileRegistry() {
   const props = PropertiesService.getScriptProperties().getProperties();
   const report = [];
   
+  console.log("⚓ SCANNING REGISTRY...");
+  
   for (const key in props) {
-    // Only check keys ending in _ID that look like Drive IDs (long strings, no spaces)
     if (key.endsWith('_ID') && props[key].length > 20 && !props[key].includes(' ')) {
       try {
-        const resource = DriveApp.getFolderById(props[key]);
+        // Try to get as Folder first, then File
+        let resource;
+        try { resource = DriveApp.getFolderById(props[key]); }
+        catch(e) { resource = DriveApp.getFileById(props[key]); }
+        
         report.push("✅ VERIFIED: " + key + " -> " + resource.getName());
       } catch (e) {
         report.push("❌ FAILED: " + key + " (" + props[key] + ")");
       }
     }
   }
-  console.log("⚓ RECONCILIATION COMPLETE.");
   return report;
 }
 
 function getFolderMap(folderId) {
   try {
     const folder = DriveApp.getFolderById(folderId);
+    const subfolders = folder.getFolders();
     const files = folder.getFiles();
-    const map = { name: folder.getName(), files: [] };
+    
+    const map = { name: folder.getName(), folders: [], files: [] };
+
+    while (subfolders.hasNext()) {
+      const sub = subfolders.next();
+      map.folders.push({ name: sub.getName(), id: sub.getId() });
+    }
     while (files.hasNext()) {
       const file = files.next();
       map.files.push({ name: file.getName(), id: file.getId() });
     }
     return map;
   } catch (e) {
-    return { error: "Folder unreachable: " + folderId };
+    return { error: "Unreachable: " + folderId };
   }
 }
