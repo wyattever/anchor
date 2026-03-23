@@ -1,39 +1,31 @@
 /**
- * ANCHOR CORE v9.0.0 - Memory & Vault Interface
- * Derived from v8 source: 2_memory, 4_executor
+ * ANCHOR CORE v9.4.0 - Memory Controller
  */
 
-const VAULT_ID = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
-
-/**
- * APPEND TO VAULT
- * Stores interactions in the designated Google Drive Vault file.
- */
-function logToVault(content) {
-  if (!VAULT_ID) {
-    console.error("⚓ ERROR: VAULT_ID NOT FOUND IN PROPERTIES.");
-    return;
-  }
+function getPhysicalMemory() {
+  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+  const vault = DriveApp.getFolderById(vaultId);
+  const files = vault.getFilesByName('agent_memory.json');
   
-  try {
-    const file = DriveApp.getFileById(VAULT_ID);
-    const existing = file.getBlob().getDataAsString();
-    const timestamp = new Date().toISOString();
-    const newContent = existing + "\n\n--- [" + timestamp + "] ---\n" + content;
-    
-    file.setContent(newContent);
-    return true;
-  } catch (e) {
-    console.error("⚓ VAULT ERROR: " + e.toString());
-    return false;
+  if (files.hasNext()) {
+    const file = files.next();
+    return JSON.parse(file.getContentText());
   }
+  return null;
 }
 
-/**
- * SEARCH MEMORY
- * Placeholder for vector-lite or keyword search within the Vault.
- */
-function searchVault(query) {
-  // Logic to parse Vault content for context retrieval
-  return "Memory search active for: " + query;
+function updatePhysicalMemory(newData) {
+  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+  const vault = DriveApp.getFolderById(vaultId);
+  const files = vault.getFilesByName('agent_memory.json');
+  
+  const memory = getPhysicalMemory() || {};
+  const updatedMemory = { ...memory, ...newData, last_sync: new Date().toISOString() };
+  
+  if (files.hasNext()) {
+    files.next().setContent(JSON.stringify(updatedMemory, null, 2));
+  } else {
+    vault.createFile('agent_memory.json', JSON.stringify(updatedMemory, null, 2), MimeType.PLAIN_TEXT);
+  }
+  return updatedMemory;
 }
