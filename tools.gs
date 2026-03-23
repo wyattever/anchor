@@ -90,3 +90,21 @@ function testExecution() {
   console.log("📂 EXECUTION RESULT:", JSON.stringify(result, null, 2));
   return result;
 }
+
+/**
+ * Test Brain's awareness of the new Vault architecture
+ */
+function testVaultAwareness() {
+  console.log("⚓ TESTING VAULT-CENTRIC REASONING...");
+  const testPrompt = "Where should you store long-term ingestion data now?";
+  
+  const result = processReasoning(testPrompt);
+  console.log("🧠 BRAIN RESPONSE:", result.response);
+  
+  if (result.response.includes("ANCHOR-VAULT") && !result.response.includes("Temporal Lake")) {
+    console.log("✅ VALIDATION SUCCESS: Brain is Vault-aware.");
+  } else {
+    console.warn("⚠️ VALIDATION WARNING: Brain may still be referencing legacy architecture.");
+  }
+  return result;
+}
