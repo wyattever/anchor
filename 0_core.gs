@@ -1,31 +1,35 @@
 /**
- * ANCHOR CORE v9.9.3 - Final Switch Fix
+ * ANCHOR CORE v9.9.4 - Strict Routing Enforcement
  */
 
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    const postData = e.postData.contents;
+    const data = JSON.parse(postData);
     const intent = (data.intent || "REASON").toUpperCase();
     
+    // PATH A: INGESTION (Drive Write Only)
     if (intent === "INGEST") {
-      const ingestResult = ingestToVault(data.message, "MOBILE_UI");
+      const result = ingestToVault(data.message, "MOBILE_UI");
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
         intent: "INGEST",
-        data: ingestResult
+        fileId: result.fileId,
+        name: result.name
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
+    // PATH B: PROJECT LOGGING
     if (intent === "PROJECT_LOG") {
-      const logResult = writeProjectLog(data.project || "GENERAL", data.message);
+      const result = writeProjectLog(data.project || "GENERAL", data.message);
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
         intent: "PROJECT_LOG",
-        data: logResult
+        fileId: result.id
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Default to REASONing
+    // PATH C: REASONING (LLM Bridge)
     const reasonResult = processReasoning(data.message || data.prompt);
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
