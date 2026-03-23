@@ -1,42 +1,39 @@
 /**
- * ANCHOR CORE v9.9.0 - Mobile API Gateway
+ * ANCHOR CORE v9.9.3 - Final Switch Fix
  */
 
 function doPost(e) {
-  const logVault = (msg) => ingestToVault(msg, "MOBILE_UI");
-  
   try {
     const data = JSON.parse(e.postData.contents);
-    const intent = data.intent ? data.intent.toUpperCase() : "REASON";
+    const intent = (data.intent || "REASON").toUpperCase();
     
-    logVault("Processing Mobile Intent: " + intent);
+    if (intent === "INGEST") {
+      const ingestResult = ingestToVault(data.message, "MOBILE_UI");
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        intent: "INGEST",
+        data: ingestResult
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
     
-    let result;
-    switch(intent) {
-      case "INGEST":
-        // Direct save to ANCHOR-VAULT
-        result = ingestToVault(data.message, "MOBILE_USER");
-        break;
-        
-      case "PROJECT_LOG":
-        // Save to specific project folder in ACTIVE_PROJECTS
-        result = writeProjectLog(data.project || "GENERAL", data.message);
-        break;
-        
-      case "REASON":
-      default:
-        // Run full LLM reasoning with Vault context
-        result = processReasoning(data.message || data.prompt);
+    if (intent === "PROJECT_LOG") {
+      const logResult = writeProjectLog(data.project || "GENERAL", data.message);
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        intent: "PROJECT_LOG",
+        data: logResult
+      })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // Default to REASONing
+    const reasonResult = processReasoning(data.message || data.prompt);
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      intent: intent,
-      data: result
+      intent: "REASON",
+      data: reasonResult
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
-    logVault("API ERROR: " + err.toString());
     return ContentService.createTextOutput(JSON.stringify({
       status: "error",
       message: err.toString()
@@ -44,9 +41,6 @@ function doPost(e) {
   }
 }
 
-/**
- * VERTEX AI BRIDGE (Internal Routing)
- */
 function routeRequest(payload) {
   const props = PropertiesService.getScriptProperties().getProperties();
   const url = "https://" + props.VERTEX_LOCATION + "-aiplatform.googleapis.com/v1/projects/" + props.GCP_PROJECT_ID + "/locations/" + props.VERTEX_LOCATION + "/publishers/google/models/gemini-2.5-flash-lite:streamGenerateContent";
