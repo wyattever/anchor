@@ -77,3 +77,16 @@ function testSearch() {
   console.log("🔍 SEARCH RESULT:", JSON.stringify(result, null, 2));
   return result;
 }
+
+/**
+ * Test the Executor's ability to write files
+ */
+function testExecution() {
+  console.log("⚓ TESTING ACTION ENGINE...");
+  const projectName = "ANCHOR_DIAGNOSTIC_v9";
+  const content = "System execution test at " + new Date().toLocaleString();
+  
+  const result = writeProjectLog(projectName, content);
+  console.log("📂 EXECUTION RESULT:", JSON.stringify(result, null, 2));
+  return result;
+}
