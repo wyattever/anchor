@@ -108,3 +108,14 @@ function testVaultAwareness() {
   }
   return result;
 }
+
+/**
+ * Test the Vault Ingestion logic
+ */
+function testIngestion() {
+  console.log("⚓ TESTING VAULT INGESTION...");
+  const sampleData = "System Validation: ANCHOR v9 Core Infrastructure is 100% operational.";
+  const result = ingestToVault(sampleData, "SYSTEM_DIAGNOSTIC");
+  console.log("📥 INGESTION RESULT:", JSON.stringify(result, null, 2));
+  return result;
+}
