@@ -1,47 +1,55 @@
 /**
- * ANCHOR CORE v9.7.0 - Unified Orchestrator
+ * ANCHOR CORE v9.9.0 - Mobile API Gateway
  */
 
-const CONFIG = {
-  PROJECT_ID: PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID'),
-  LOCATION: PropertiesService.getScriptProperties().getProperty('VERTEX_LOCATION'),
-  MODEL_ID: "gemini-2.5-flash-lite"
-};
-
-/**
- * WEBHOOK ENTRY POINT
- */
 function doPost(e) {
+  const logVault = (msg) => ingestToVault(msg, "MOBILE_UI");
+  
   try {
-    const payload = JSON.parse(e.postData.contents);
-    const intent = payload.intent || "REASON"; // Default to reasoning
+    const data = JSON.parse(e.postData.contents);
+    const intent = data.intent ? data.intent.toUpperCase() : "REASON";
+    
+    logVault("Processing Mobile Intent: " + intent);
     
     let result;
     switch(intent) {
-      case "LOG":
-        result = writeProjectLog(payload.project, payload.content);
+      case "INGEST":
+        // Direct save to ANCHOR-VAULT
+        result = ingestToVault(data.message, "MOBILE_USER");
         break;
-      case "SEARCH":
-        result = findFileInRegistry(payload.registry, payload.query);
+        
+      case "PROJECT_LOG":
+        // Save to specific project folder in ACTIVE_PROJECTS
+        result = writeProjectLog(data.project || "GENERAL", data.message);
         break;
+        
       case "REASON":
       default:
-        result = processReasoning(payload.message || payload.prompt);
+        // Run full LLM reasoning with Vault context
+        result = processReasoning(data.message || data.prompt);
     }
 
-    return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      intent: intent,
+      data: result
+    })).setMimeType(ContentService.MimeType.JSON);
+
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    logVault("API ERROR: " + err.toString());
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 /**
- * VERTEX AI BRIDGE
+ * VERTEX AI BRIDGE (Internal Routing)
  */
 function routeRequest(payload) {
-  const url = `https://${CONFIG.LOCATION}-aiplatform.googleapis.com/v1/projects/${CONFIG.PROJECT_ID}/locations/${CONFIG.LOCATION}/publishers/google/models/${CONFIG.MODEL_ID}:streamGenerateContent`;
+  const props = PropertiesService.getScriptProperties().getProperties();
+  const url = "https://" + props.VERTEX_LOCATION + "-aiplatform.googleapis.com/v1/projects/" + props.GCP_PROJECT_ID + "/locations/" + props.VERTEX_LOCATION + "/publishers/google/models/gemini-2.5-flash-lite:streamGenerateContent";
   
   const body = {
     contents: [{
@@ -60,7 +68,7 @@ function routeRequest(payload) {
 
   const response = UrlFetchApp.fetch(url, options);
   return {
-    status: response.getResponseCode() === 200 ? "success" : "error",
+    code: response.getResponseCode(),
     response: response.getContentText()
   };
 }
