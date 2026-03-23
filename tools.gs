@@ -27,3 +27,14 @@ function testRoute(prompt, context) {
   console.log("⚓ ROUTE RESULT:", JSON.stringify(result, null, 2));
   return result;
 }
+
+/**
+ * Test the Reasoning Engine + Vertex AI Bridge
+ */
+function testBrain() {
+  const testPrompt = "Who are you and what is your current mission?";
+  console.log("⚓ INITIATING BRAIN TEST...");
+  const result = processReasoning(testPrompt);
+  console.log("⚓ BRAIN RESPONSE:", JSON.stringify(result, null, 2));
+  return result;
+}
