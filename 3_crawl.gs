@@ -1,50 +1,43 @@
 /**
- * ANCHOR CORE v9.5.0 - Network Search Engine
+ * 3_crawl.gs — ANCHOR v10 | Vault Surveyor
+ * Scans ANCHOR-VAULT and updates the Network Registry.
  */
 
-/**
- * FIND FILE IN REGISTRY
- * Scans a specific registry folder for a filename (fuzzy match).
- */
-function findFileInRegistry(registryKey, fileName) {
-  const folderId = PropertiesService.getScriptProperties().getProperty(registryKey);
-  if (!folderId) return { error: "Registry key " + registryKey + " not found." };
-  
+function CRAWL_VAULT() {
+  const lock = LockService.getScriptLock();
   try {
-    const folder = DriveApp.getFolderById(folderId);
-    const files = folder.getFilesByName(fileName);
+    lock.waitLock(30000);
+    console.log("⚓ Starting Vault Crawl...");
     
-    if (files.hasNext()) {
+    const vault = DriveApp.getFolderById(VAULT_ID);
+    const files = vault.getFiles();
+    const manifest = [];
+    
+    while (files.hasNext()) {
       const file = files.next();
-      return { name: file.getName(), id: file.getId(), url: file.getUrl() };
+      manifest.push({
+        id: file.getId(),
+        name: file.getName(),
+        created: file.getDateCreated().toISOString(),
+        size: file.getSize()
+      });
     }
     
-    // Fallback: Partial match search
-    const partials = folder.searchFiles("title contains '" + fileName + "'");
-    if (partials.hasNext()) {
-      const p = partials.next();
-      return { name: p.getName(), id: p.getId(), url: p.getUrl(), note: "Partial match" };
-    }
+    // Update Registry File
+    const registryFile = DriveApp.getFileById(REGISTRY_ID);
+    registryFile.setContent(JSON.stringify({
+      last_crawl: new Date().toISOString(),
+      file_count: manifest.length,
+      files: manifest
+    }));
     
-    return { error: "File not found in " + folder.getName() };
+    console.log("✅ Crawl Complete. Indexed " + manifest.length + " files.");
+    return manifest.length + " files indexed in Registry.";
+    
   } catch (e) {
-    return { error: e.message };
+    console.error("❌ Crawl Error: " + e.message);
+    return "Crawl Failed: " + e.message;
+  } finally {
+    if (lock.hasLock()) lock.releaseLock();
   }
-}
-
-/**
- * LIST PROJECT LOGS
- * Specifically targets the active project folders.
- */
-function listRecentLogs(count = 5) {
-  const activeId = PropertiesService.getScriptProperties().getProperty('ACTIVE_PROJECTS_ID');
-  const folder = DriveApp.getFolderById(activeId);
-  const files = folder.getFiles();
-  const logs = [];
-  
-  while (files.hasNext() && logs.length < count) {
-    const file = files.next();
-    logs.push({ name: file.getName(), id: file.getId(), date: file.getLastUpdated() });
-  }
-  return logs.sort((a, b) => b.date - a.date);
 }
