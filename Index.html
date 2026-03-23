@@ -26,16 +26,6 @@
 
    <div class="btn-row" id="agent-row"></div>
 
-   <div class="btn-row" id="format-row" style="padding-top:0;">
-     <div style="display:flex; justify-content: space-between; flex: 1;">
-       <button class="active" onclick="setFormat('chat', this)">chat</button>
-       <button onclick="setFormat('txt', this)">txt</button>
-       <button onclick="setFormat('csv', this)">csv</button>
-       <button onclick="setFormat('json', this)">json</button>
-     </div>
-     <span class="material-symbols-outlined" style="color:var(--text-light); padding-left:10px;" onclick="triggerCrawl()">conversion_path</span>
-   </div>
-
    <div id="chat-feed"></div>
 
    <div class="footer">
@@ -45,7 +35,8 @@
        <div style="width:24px;"></div>
      </div>
      <div class="footer-row">
-       <div style="width:24px;"></div> <div class="input-container"><input type="text" id="msg-input" placeholder="Loading..." onkeypress="if(event.key==='Enter') sendMessage()"></div>
+       <div style="width:24px;"></div>
+       <div class="input-container"><input type="text" id="msg-input" placeholder="Loading..." onkeypress="if(event.key==='Enter') sendMessage()"></div>
        <span class="material-symbols-outlined" style="color:var(--google-blue);" onclick="sendMessage()">send</span>
      </div>
      <div id="thinking" class="thinking-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
@@ -87,14 +78,6 @@
      document.getElementById('msg-input').placeholder = "Message " + name;
    }
 
-   function setFormat(type, btn) {
-     activeFormat = type;
-     document.querySelectorAll('#format-row button').forEach(b => b.classList.remove('active'));
-     btn.classList.add('active');
-     const topicRow = document.getElementById('topic-row');
-     type === 'chat' ? topicRow.classList.add('hidden') : topicRow.classList.remove('hidden');
-   }
-
    function addBubble(text, type) {
      const feed = document.getElementById('chat-feed');
      const container = document.createElement('div');
@@ -114,15 +97,7 @@
        document.getElementById('thinking').style.visibility = "hidden";
        let outputText = (res && res.status === 'OK') ? (res.response || "Success") : "Error: " + JSON.stringify(res);
        addBubble(outputText, "received");
-     }).processMessage({ agent: activeAgent, id: activeId, format: activeFormat, topic: document.getElementById('topic-input').value, message: msg });
-   }
-
-   function triggerCrawl() {
-     document.getElementById('thinking').style.visibility = "visible";
-     google.script.run.withSuccessHandler(res => {
-       document.getElementById('thinking').style.visibility = "hidden";
-       addBubble(res, 'received');
-     }).CRAWL_VAULT();
+     }).processMessage({ agent: activeAgent, id: activeId, format: 'chat', message: msg });
    }
 
    window.onload = initAgentButtons;

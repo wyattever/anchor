@@ -1,9 +1,9 @@
 /**
-* WebApp.gs — ANCHOR v10.0.6 | UI Controller
-* Update: Matched agent folder keys to physical Drive prefixes.
+* WebApp.gs — ANCHOR v10.0.7 | UI Controller
+* Update: v10.0.7 Sync
 */
 
-const UI_VERSION = 'v10.0.6';
+const UI_VERSION = 'v10.0.7';
 
 function doGet() {
  return HtmlService.createTemplateFromFile('Index')
@@ -17,9 +17,6 @@ function include(filename) {
  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-/**
-* Agent Folder Keys updated to match VAULT_MAP prefixes
-*/
 function getAgentConfig() {
  const agents = [
    { name: 'Panto',    key: '04-PAN-ANA-001', icon: 'neurology' },
