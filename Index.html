@@ -1,106 +1,129 @@
 <!DOCTYPE html>
 <html>
 <head>
- <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
- <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
- <?!= include('styles'); ?>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <?!= include('styles'); ?>
 </head>
 <body>
- <div id="iphone-se-container">
-   <div class="header">
-     <div style="display:flex;align-items:center;">
-       <div class="status-light"></div>
-       <span style="font-size:10px;margin-left:6px;color:var(--text-light);">MODEL</span>
-     </div>
-     
-     <div style="text-align:center; display: flex; align-items: center; gap: 10px;">
-       <div style="font-weight:500;font-size:14px;">ANCHOR</div>
-       <span class="material-symbols-outlined header-sync-btn" onclick="runDiscovery()" title="Remap Network">sync_saved_locally</span>
-     </div>
+  <div id="iphone-se-container">
+    <div class="header">
+      <div style="display:flex;align-items:center;"><div class="status-light"></div><span style="font-size:10px;margin-left:6px;color:var(--text-light);">MODEL</span></div>
+      
+      <div style="display:flex; align-items:center; gap:12px;">
+         <div style="text-align:center;">
+            <div style="font-weight:500;font-size:14px;">ANCHOR</div>
+            <div id="version-display" style="font-size:9px;color:var(--text-light);">v10.0.8</div>
+         </div>
+         <span class="material-symbols-outlined header-center-btn" onclick="runDiscovery()">task_alt</span>
+      </div>
 
-     <div style="display:flex;align-items:center;">
-       <span style="font-size:10px;margin-right:6px;color:var(--text-light);">REPO</span>
-       <div class="status-light"></div>
-     </div>
-   </div>
+      <div style="display:flex;align-items:center;"><span style="font-size:10px;margin-right:6px;color:var(--text-light);">REPO</span><div class="status-light"></div></div>
+    </div>
 
-   <div class="btn-row" id="agent-row"></div>
+    <div class="btn-row" id="agent-row"></div>
 
-   <div id="chat-feed"></div>
+    <div class="btn-row" id="format-row" style="padding-top:0;">
+      <div style="display:flex; justify-content: space-between; flex: 1;">
+        <button class="active" onclick="setFormat('chat', this)">chat</button>
+        <button onclick="setFormat('txt', this)">txt</button>
+        <button onclick="setFormat('csv', this)">csv</button>
+        <button onclick="setFormat('json', this)">json</button>
+      </div>
+      <span class="material-symbols-outlined" style="color:var(--text-light); padding-left:10px;" onclick="triggerCrawl()">conversion_path</span>
+    </div>
 
-   <div class="footer">
-     <div id="topic-row" class="footer-row hidden" style="margin-top:0;">
-       <div style="width:24px;"></div>
-       <div class="input-container" style="background:transparent; border:1px solid var(--border);"><input type="text" id="topic-input" placeholder="Topic" style="padding: 8px 0;"></div>
-       <div style="width:24px;"></div>
-     </div>
-     <div class="footer-row">
-       <div style="width:24px;"></div>
-       <div class="input-container"><input type="text" id="msg-input" placeholder="Loading..." onkeypress="if(event.key==='Enter') sendMessage()"></div>
-       <span class="material-symbols-outlined" style="color:var(--google-blue);" onclick="sendMessage()">send</span>
-     </div>
-     <div id="thinking" class="thinking-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-   </div>
- </div>
+    <div id="chat-feed"></div>
 
- <script>
-   const UI_VERSION = 'v10.0.7';
-   let activeAgent = ''; let activeId = ''; let activeFormat = 'chat';
+    <div class="footer">
+      <div id="topic-row" class="footer-row hidden" style="margin-top:0;">
+        <div style="width:24px;"></div>
+        <div class="input-container" style="background:transparent; border:1px solid var(--border);"><input type="text" id="topic-input" placeholder="Topic" style="padding: 8px 0;"></div>
+        <div style="width:24px;"></div>
+      </div>
+      <div class="footer-row">
+        <span class="material-symbols-outlined" style="color:var(--text-light);" onclick="runDiscovery()" title="Remap Network">sync_saved_locally</span>
+        <div class="input-container"><input type="text" id="msg-input" placeholder="Loading..." onkeypress="if(event.key==='Enter') sendMessage()"></div>
+        <span class="material-symbols-outlined" style="color:var(--google-blue);" onclick="sendMessage()">send</span>
+      </div>
+      <div id="thinking" class="thinking-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    </div>
+  </div>
 
-   function initAgentButtons() {
-     google.script.run.withSuccessHandler(agents => {
-       const container = document.getElementById('agent-row');
-       container.innerHTML = '';
-       agents.forEach((agent, index) => {
-         const btn = document.createElement('button');
-         if (index === 0) { btn.classList.add('active'); activeAgent = agent.name; activeId = agent.id; }
-         btn.onclick = () => setAgent(agent.name, agent.id, btn);
-         btn.innerHTML = '<span class="material-symbols-outlined">' + agent.icon + '</span>';
-         container.appendChild(btn);
-       });
-       document.getElementById('msg-input').placeholder = "Message " + activeAgent;
-     }).getAgentConfig();
-   }
+  <script>
+    const UI_VERSION = 'v10.0.8'; 
+    let activeAgent = ''; let activeId = ''; let activeFormat = 'chat';
 
-   function runDiscovery() {
-     document.getElementById('thinking').style.visibility = "visible";
-     google.script.run.withSuccessHandler(res => {
-       document.getElementById('thinking').style.visibility = "hidden";
-       addBubble(res, 'received');
-       initAgentButtons();
-     }).RECONCILE_VAULT_MAP();
-   }
+    function initAgentButtons() {
+      google.script.run.withSuccessHandler(agents => {
+        const container = document.getElementById('agent-row');
+        container.innerHTML = ''; 
+        agents.forEach((agent, index) => {
+          const btn = document.createElement('button');
+          if (index === 0) { btn.classList.add('active'); activeAgent = agent.name; activeId = agent.id; }
+          btn.onclick = () => setAgent(agent.name, agent.id, btn);
+          btn.innerHTML = '<span class="material-symbols-outlined">' + agent.icon + '</span>';
+          container.appendChild(btn);
+        });
+        document.getElementById('msg-input').placeholder = "Message " + activeAgent;
+      }).getAgentConfig();
+    }
 
-   function setAgent(name, id, btn) {
-     activeAgent = name; activeId = id;
-     document.querySelectorAll('#agent-row button').forEach(b => b.classList.remove('active'));
-     btn.classList.add('active');
-     document.getElementById('msg-input').placeholder = "Message " + name;
-   }
+    function runDiscovery() {
+      document.getElementById('thinking').style.visibility = "visible";
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble(res, 'received');
+        initAgentButtons();
+      }).RECONCILE_VAULT_MAP();
+    }
 
-   function addBubble(text, type) {
-     const feed = document.getElementById('chat-feed');
-     const container = document.createElement('div');
-     container.className = 'message-container ' + (type === 'sent' ? 'right' : 'left');
-     container.innerHTML = '<div class="bubble ' + type + '">' + text + '</div>';
-     feed.appendChild(container);
-     feed.scrollTop = feed.scrollHeight;
-   }
+    function setAgent(name, id, btn) {
+      activeAgent = name; activeId = id;
+      document.querySelectorAll('#agent-row button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('msg-input').placeholder = "Message " + name;
+    }
 
-   function sendMessage() {
-     const msg = document.getElementById('msg-input').value;
-     if (!msg) return;
-     addBubble(msg, 'sent');
-     document.getElementById('msg-input').value = "";
-     document.getElementById('thinking').style.visibility = "visible";
-     google.script.run.withSuccessHandler(res => {
-       document.getElementById('thinking').style.visibility = "hidden";
-       let outputText = (res && res.status === 'OK') ? (res.response || "Success") : "Error: " + JSON.stringify(res);
-       addBubble(outputText, "received");
-     }).processMessage({ agent: activeAgent, id: activeId, format: 'chat', message: msg });
-   }
+    function setFormat(type, btn) {
+      activeFormat = type;
+      document.querySelectorAll('#format-row button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const topicRow = document.getElementById('topic-row');
+      type === 'chat' ? topicRow.classList.add('hidden') : topicRow.classList.remove('hidden');
+    }
 
-   window.onload = initAgentButtons;
- </script>
+    function addBubble(text, type) {
+      const feed = document.getElementById('chat-feed');
+      const container = document.createElement('div');
+      container.className = 'message-container ' + (type === 'sent' ? 'right' : 'left');
+      container.innerHTML = '<div class="bubble ' + type + '">' + text + '</div>';
+      feed.appendChild(container);
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function sendMessage() {
+      const msg = document.getElementById('msg-input').value;
+      if (!msg) return;
+      addBubble(msg, 'sent');
+      document.getElementById('msg-input').value = "";
+      document.getElementById('thinking').style.visibility = "visible";
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        let outputText = (res && res.status === 'OK') ? (res.response || "Success") : "Error: " + JSON.stringify(res);
+        addBubble(outputText, "received");
+      }).processMessage({ agent: activeAgent, id: activeId, format: activeFormat, topic: document.getElementById('topic-input').value, message: msg });
+    }
+
+    function triggerCrawl() {
+      document.getElementById('thinking').style.visibility = "visible";
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble(res, 'received');
+      }).CRAWL_VAULT();
+    }
+
+    window.onload = initAgentButtons;
+  </script>
 </body>
 </html>
