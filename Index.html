@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <?!= include('styles'); ?>
+</head>
+<body>
+  <div id="iphone-se-container">
+    <div class="header">
+      <div style="display:flex;align-items:center;"><div class="status-light"></div><span style="font-size:10px;margin-left:6px;color:var(--text-light);">MODEL</span></div>
+      <div style="text-align:center;"><div style="font-weight:500;font-size:14px;">ANCHOR</div><div id="version-display" style="font-size:9px;color:var(--text-light);">v10.0.2</div></div>
+      <div style="display:flex;align-items:center;"><span style="font-size:10px;margin-right:6px;color:var(--text-light);">REPO</span><div class="status-light"></div></div>
+    </div>
+
+    <div class="btn-row" id="agent-row">
+      </div>
+
+    <div class="btn-row" id="format-row" style="padding-top:0;">
+      <div style="display:flex; justify-content: space-between; flex: 1;">
+        <button class="active" onclick="setFormat('chat', this)">chat</button>
+        <button onclick="setFormat('txt', this)">txt</button>
+        <button onclick="setFormat('csv', this)">csv</button>
+        <button onclick="setFormat('json', this)">json</button>
+      </div>
+      <span class="material-symbols-outlined surveyor-btn" onclick="triggerCrawl()">conversion_path</span>
+    </div>
+
+    <div id="chat-feed"></div>
+
+    <div class="footer">
+      <div id="topic-row" class="footer-row hidden" style="margin-top:0;">
+        <div style="width:24px;"></div>
+        <div class="input-container" style="background:transparent; border:1px solid var(--border);"><input type="text" id="topic-input" placeholder="Topic" style="padding: 8px 0;"></div>
+        <div style="width:24px;"></div>
+      </div>
+      <div class="footer-row">
+        <span class="material-symbols-outlined" style="color:var(--text-light);" onclick="clearAll()">delete_sweep</span>
+        <div class="input-container"><input type="text" id="msg-input" placeholder="Loading Agents..." onkeypress="if(event.key==='Enter') sendMessage()"></div>
+        <span class="material-symbols-outlined" style="color:var(--google-blue);" onclick="sendMessage()">send</span>
+      </div>
+      <div id="thinking" class="thinking-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    </div>
+  </div>
+
+  <script>
+    const UI_VERSION = 'v10.0.2'; 
+    let activeAgent = ''; 
+    let activeId = ''; 
+    let activeFormat = 'chat';
+
+    function initAgentButtons() {
+      google.script.run
+        .withSuccessHandler(agents => {
+          const container = document.getElementById('agent-row');
+          container.innerHTML = ''; 
+          agents.forEach((agent, index) => {
+            const btn = document.createElement('button');
+            if (index === 0) { 
+              btn.classList.add('active');
+              activeAgent = agent.name;
+              activeId = agent.id;
+            }
+            btn.onclick = () => setAgent(agent.name, agent.id, btn);
+            btn.innerHTML = '<span class="material-symbols-outlined">' + agent.icon + '</span>';
+            container.appendChild(btn);
+          });
+          document.getElementById('msg-input').placeholder = "Message " + activeAgent;
+        })
+        .getAgentConfig();
+    }
+
+    function setAgent(name, id, btn) {
+      activeAgent = name; activeId = id;
+      document.querySelectorAll('#agent-row button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('msg-input').placeholder = "Message " + name;
+    }
+
+    function setFormat(type, btn) {
+      activeFormat = type;
+      document.querySelectorAll('#format-row button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const topicRow = document.getElementById('topic-row');
+      type === 'chat' ? topicRow.classList.add('hidden') : topicRow.classList.remove('hidden');
+    }
+
+    function addBubble(text, type) {
+      const feed = document.getElementById('chat-feed');
+      const container = document.createElement('div');
+      container.className = 'message-container ' + (type === 'sent' ? 'right' : 'left');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      container.innerHTML = '<div class="bubble ' + type + '">' + text + '</div><div class="timestamp">' + time + '</div>';
+      feed.appendChild(container);
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function sendMessage() {
+      const msg = document.getElementById('msg-input').value;
+      const topic = document.getElementById('topic-input').value;
+      if (!msg) return;
+
+      addBubble(msg, 'sent');
+      document.getElementById('msg-input').value = "";
+      document.getElementById('thinking').style.visibility = "visible";
+
+      google.script.run
+        .withSuccessHandler(res => {
+          document.getElementById('thinking').style.visibility = "hidden";
+          let outputText = (res && res.status === 'OK') ? (res.response || "Action Success: " + (res.fileId || "")) : "Error: " + JSON.stringify(res);
+          addBubble(outputText, "received");
+        })
+        .withFailureHandler(err => {
+          document.getElementById('thinking').style.visibility = "hidden";
+          addBubble("System Error: " + err, "received");
+        })
+        .processMessage({ agent: activeAgent, id: activeId, format: activeFormat, topic: topic, message: msg, ui_version: UI_VERSION });
+    }
+
+    function triggerCrawl() {
+      document.getElementById('thinking').style.visibility = "visible";
+      google.script.run
+        .withSuccessHandler(res => {
+          document.getElementById('thinking').style.visibility = "hidden";
+          addBubble(res, 'received');
+        })
+        .CRAWL_VAULT();
+    }
+
+    function clearAll() {
+      document.getElementById('chat-feed').innerHTML = "";
+    }
+
+    window.onload = initAgentButtons;
+  </script>
+</body>
+</html>
