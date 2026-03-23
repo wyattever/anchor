@@ -1,16 +1,13 @@
 /**
- * 0_core.gs — ANCHOR v9 | API Gateway + Vertex Bridge
- * Architecture: Fail-Fast Router with pre-lock concurrency guard
- */
+* 0_core.gs — ANCHOR v9.1.1 | API Gateway + Vertex Bridge
+* Fix: handleProjectLog_ Type Validation & Refined Error Handling
+*/
 
-const VAULT_ID       = '1PfiQ9BZ9pk2kiVJ8HUsEt4XenMy4ZkiE';
-const REGISTRY_ID    = '1cgrPu0CZsQJS4LWUwh92q8MsEfrXZ20t';
-const ACTIVE_PROJ_ID = '1UQjNxRKl3qh_Lt8TVrIbXYzchOTYHsiS';
-const VERTEX_MODEL   = 'gemini-2.5-flash-lite';
+const VAULT_ID        = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+const VERTEX_MODEL    = 'gemini-2.5-flash-lite';
 const LOCK_TIMEOUT_MS = 30000;
-
-const GCP_PROJECT_ID = PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID');
-const GCP_REGION     = PropertiesService.getScriptProperties().getProperty('GCP_REGION') || 'us-central1';
+const GCP_PROJECT_ID  = PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID');
+const GCP_REGION      = PropertiesService.getScriptProperties().getProperty('GCP_REGION') || 'us-central1';
 
 function getVertexEndpoint_() {
   return `https://${GCP_REGION}-aiplatform.googleapis.com/v1/projects/${GCP_PROJECT_ID}/locations/${GCP_REGION}/publishers/google/models/${VERTEX_MODEL}:generateContent`;
@@ -25,39 +22,29 @@ function doPost(e) {
   }
 
   const intent = (payload.intent || '').toUpperCase().trim();
-  if (!intent) {
-    return buildResponse_({ status: 'ERROR', message: 'Missing required field: intent.' }, 400);
-  }
-
   const lock = LockService.getScriptLock();
   let lockAcquired = false;
 
   try {
     lock.waitLock(LOCK_TIMEOUT_MS);
     lockAcquired = true;
-    
+  
     switch (intent) {
-      case 'INGEST': {
-        const result = handleIngest_(payload);
-        return buildResponse_({ status: result.status, fileId: result.fileId, name: result.name });
-      }
-      case 'PROJECT_LOG': {
-        const result = handleProjectLog_(payload);
-        return buildResponse_(result);
-      }
-      case 'REASON': {
-        const result = processReasoning_(payload);
-        return buildResponse_(result);
-      }
-      case 'PING': {
-        return buildResponse_({ status: 'OK', message: 'ANCHOR v9 is alive.' });
-      }
-      default: {
+      case 'INGEST': 
+        return buildResponse_(handleIngest_(payload));
+      case 'PROJECT_LOG': 
+        return buildResponse_(handleProjectLog_(payload));
+      case 'REASON': 
+        return buildResponse_(processReasoning_(payload));
+      case 'PING': 
+        return buildResponse_({ status: 'OK', message: 'ANCHOR v9.1.1 is alive.' });
+      default: 
         return buildResponse_({ status: 'ERROR', message: `Unknown intent: "${intent}".` }, 400);
-      }
     }
   } catch (err) {
-    return buildResponse_({ status: 'ERROR', message: err.message }, 500);
+    // Distinguish between validation (400) and execution (500)
+    const statusCode = err.message.includes('missing required') ? 400 : 500;
+    return buildResponse_({ status: 'ERROR', message: err.message }, statusCode);
   } finally {
     if (lockAcquired) lock.releaseLock();
   }
@@ -65,8 +52,8 @@ function doPost(e) {
 
 function handleIngest_(payload) {
   const name = payload.name || `ingest_${Date.now()}`;
-  const content = payload.content || payload.data || null;
-  if (!content) throw new Error('INGEST payload missing required field: content or data.');
+  const content = payload.content || payload.data;
+  if (!content) throw new Error('INGEST missing required field: content.');
 
   const blob = Utilities.newBlob(JSON.stringify(content), 'application/json', `${name}.json`);
   const file = DriveApp.getFolderById(VAULT_ID).createFile(blob);
@@ -74,16 +61,29 @@ function handleIngest_(payload) {
 }
 
 function handleProjectLog_(payload) {
-  const ss = SpreadsheetApp.openById(ACTIVE_PROJ_ID);
+  const activeProjectsId = getFolderIdByName_('ACTIVE-PROJECTS');
+  if (!activeProjectsId) throw new Error('VAULT_MAP missing ACTIVE-PROJECTS.');
+
+  // FIX: Verify if ID is a Spreadsheet or Folder. 
+  // If Folder, find/create a "Network_Log" Spreadsheet inside it.
+  let ss;
+  try {
+    ss = SpreadsheetApp.openById(activeProjectsId);
+  } catch (e) {
+    const folder = DriveApp.getFolderById(activeProjectsId);
+    const files = folder.getFilesByName('Network_Project_Log');
+    ss = files.hasNext() ? SpreadsheetApp.openById(files.next().getId()) : SpreadsheetApp.create('Network_Project_Log');
+    if (!files.hasNext()) folder.addFile(DriveApp.getFileById(ss.getId()));
+  }
+
   const sheet = ss.getSheets()[0];
-  const row = [new Date().toISOString(), payload.projectId || '', payload.event || '', JSON.stringify(payload.meta || {})];
-  sheet.appendRow(row);
+  sheet.appendRow([new Date().toISOString(), payload.projectId || 'N/A', payload.event || 'LOG', JSON.stringify(payload.meta || {})]);
   return { status: 'OK', rowIndex: sheet.getLastRow() };
 }
 
 function processReasoning_(payload) {
-  const prompt = payload.prompt || payload.query || '';
-  if (!prompt) throw new Error('REASON payload missing required field: prompt.');
+  const prompt = payload.prompt || payload.query;
+  if (!prompt) throw new Error('REASON missing required field: prompt.');
 
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -91,11 +91,9 @@ function processReasoning_(payload) {
   };
 
   const options = {
-    method: 'post',
-    contentType: 'application/json',
+    method: 'post', contentType: 'application/json',
     headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
-    payload: JSON.stringify(body),
-    muteHttpExceptions: true
+    payload: JSON.stringify(body), muteHttpExceptions: true
   };
 
   const response = UrlFetchApp.fetch(getVertexEndpoint_(), options);
@@ -106,6 +104,5 @@ function processReasoning_(payload) {
 }
 
 function buildResponse_(body, httpStatus = 200) {
-  return ContentService.createTextOutput(JSON.stringify({ httpStatus, ...body }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ httpStatus, ...body })).setMimeType(ContentService.MimeType.JSON);
 }
