@@ -60,19 +60,29 @@ function doPost(e) {
 }
 
 function handleIngest_(payload) {
-  const name    = payload.name || 'ingest_' + Date.now() + '.txt';
-  const content = payload.content;
+  const name     = (payload.name || 'ingest_' + Date.now() + '.txt');
+  const content  = payload.content;
   if (!content) throw new Error('INGEST payload missing required field: content.');
 
-  // Use agent folder ID if provided — falls back to Vault root
   const targetId = payload.folderId || VAULT_ID;
   const folder   = DriveApp.getFolderById(targetId);
-
-  // Write as plain text — not JSON-wrapped
-  const file = folder.createFile(name, content, MimeType.PLAIN_TEXT);
+  const file     = folder.createFile(name, content, MimeType.PLAIN_TEXT);
+  const fileUrl  = 'https://drive.google.com/file/d/' + file.getId() + '/view';
 
   console.log(`[ANCHOR:INGEST] "${name}" → ${file.getId()} in folder ${targetId}`);
-  return { status: 'OK', fileId: file.getId(), name: file.getName() };
+
+  // Log file write to registry sheets
+  logMessage_({
+    agent:     payload.meta && payload.meta.agent     ? payload.meta.agent     : '',
+    agentId:   payload.meta && payload.meta.agentId   ? payload.meta.agentId   : '',
+    format:    payload.meta && payload.meta.format    ? payload.meta.format    : 'txt',
+    topic:     payload.name || '',
+    message:   name,
+    url:       fileUrl,
+    direction: 'OUT'
+  });
+
+  return { status: 'OK', fileId: file.getId(), name: file.getName(), url: fileUrl };
 }
 
 function handleProjectLog_(payload) {
@@ -117,7 +127,20 @@ function processReasoning_(payload) {
     throw new Error(`Vertex AI Error: ${JSON.stringify(raw.error)}`);
   }
 
-  return { status: 'OK', response: raw.candidates?.[0]?.content?.parts?.[0]?.text || '' };
+  const responseText = raw.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  // Log agent reply to registry sheets
+  logMessage_({
+    agent:     payload.meta && payload.meta.agent   ? payload.meta.agent   : '',
+    agentId:   payload.meta && payload.meta.agentId ? payload.meta.agentId : '',
+    format:    'chat',
+    topic:     payload.topic || '',
+    message:   responseText,
+    url:       '',
+    direction: 'IN'
+  });
+
+  return { status: 'OK', response: responseText };
 }
 
 function buildResponse_(body, httpStatus = 200) {
