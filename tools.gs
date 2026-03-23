@@ -54,3 +54,16 @@ function testCrawl() {
   
   return report;
 }
+
+/**
+ * Test Physical Memory Read/Write
+ */
+function testMemory() {
+  console.log("⚓ TESTING PHYSICAL MEMORY BRIDGE...");
+  const timestamp = new Date().toLocaleTimeString();
+  const update = { last_test: timestamp, status: "VERIFIED" };
+  
+  const result = updatePhysicalMemory(update);
+  console.log("✅ MEMORY UPDATED. CURRENT STATE:", JSON.stringify(result, null, 2));
+  return result;
+}
