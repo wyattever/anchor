@@ -1,54 +1,37 @@
 /**
- * ANCHOR CORE v9.2.0 - Drive Crawler & Registry Sync
+ * ANCHOR CORE v9.2.1 - Resilient Crawler
  */
 
-/**
- * RECONCILE REGISTRY
- * Iterates through Script Properties and verifies Drive IDs.
- */
 function reconcileRegistry() {
   const props = PropertiesService.getScriptProperties().getProperties();
   const report = [];
   
-  console.log("⚓ STARTING REGISTRY RECONCILIATION...");
-  
   for (const key in props) {
-    if (key.endsWith('_ID')) {
+    // Only check keys ending in _ID that look like Drive IDs (long strings, no spaces)
+    if (key.endsWith('_ID') && props[key].length > 20 && !props[key].includes(' ')) {
       try {
-        const id = props[key];
-        const type = id.length > 20 ? "DRIVE_OBJECT" : "METADATA";
-        
-        if (type === "DRIVE_OBJECT") {
-          const resource = DriveApp.getFolderById(id) || DriveApp.getFileById(id);
-          report.push(`VERIFIED: ${key} -> ${resource.getName()}`);
-        }
+        const resource = DriveApp.getFolderById(props[key]);
+        report.push("✅ VERIFIED: " + key + " -> " + resource.getName());
       } catch (e) {
-        report.push(`ERROR: ${key} (${props[key]}) is unreachable or invalid.`);
+        report.push("❌ FAILED: " + key + " (" + props[key] + ")");
       }
     }
   }
-  
-  console.log("⚓ RECONCILIATION REPORT:\n" + report.join("\n"));
+  console.log("⚓ RECONCILIATION COMPLETE.");
   return report;
 }
 
-/**
- * GET FOLDER MAP
- * Returns a JSON map of a folder's contents for the Brain to parse.
- */
 function getFolderMap(folderId) {
-  const folder = DriveApp.getFolderById(folderId);
-  const files = folder.getFiles();
-  const subfolders = folder.getFolders();
-  const map = { name: folder.getName(), files: [], folders: [] };
-
-  while (files.hasNext()) {
-    const file = files.next();
-    map.files.push({ name: file.getName(), id: file.getId() });
+  try {
+    const folder = DriveApp.getFolderById(folderId);
+    const files = folder.getFiles();
+    const map = { name: folder.getName(), files: [] };
+    while (files.hasNext()) {
+      const file = files.next();
+      map.files.push({ name: file.getName(), id: file.getId() });
+    }
+    return map;
+  } catch (e) {
+    return { error: "Folder unreachable: " + folderId };
   }
-  while (subfolders.hasNext()) {
-    const sub = subfolders.next();
-    map.folders.push({ name: sub.getName(), id: sub.getId() });
-  }
-  return map;
 }
