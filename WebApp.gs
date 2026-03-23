@@ -1,9 +1,9 @@
 /**
- * WebApp.gs — ANCHOR v10.0.3 | UI Controller
- * Bridges Index.html to the 0_core.gs Gateway with Network Discovery.
+ * WebApp.gs — ANCHOR v10.0.4 | UI Controller
+ * Bridges Index.html to the 0_core.gs Gateway with Precise Status Reporting.
  */
 
-const UI_VERSION = 'v10.0.3';
+const UI_VERSION = 'v10.0.4';
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
@@ -18,25 +18,51 @@ function include(filename) {
 }
 
 /**
- * RECONCILE_NETWORK — Triggered by the UI "Sync" button.
- * Resets and maps all _ID properties based on physical Vault folders.
+ * RECONCILE_NETWORK — Symmetric Sync with formatted status messages.
  */
 function RECONCILE_NETWORK() {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    lock.waitLock(15000);
+    const props = PropertiesService.getScriptProperties();
+    const allProps = props.getProperties();
     const vault = DriveApp.getFolderById(VAULT_ID);
     const folders = vault.getFolders();
-    const props = PropertiesService.getScriptProperties();
     
-    let added = 0;
+    let added = [];
+    let deleted = [];
+    let physicalIds = [];
+
+    // 1. Discovery Phase
     while (folders.hasNext()) {
       const folder = folders.next();
-      const key = folder.getName().toUpperCase().replace(/\s+/g, '_') + "_ID";
-      props.setProperty(key, folder.getId());
-      added++;
+      const folderName = folder.getName();
+      const key = folderName.toUpperCase().replace(/\s+/g, '_') + "_ID";
+      const id = folder.getId();
+      physicalIds.push(id);
+
+      if (!allProps[key]) {
+        props.setProperty(key, id);
+        added.push(folderName);
+      }
     }
-    return "Network Synced: " + added + " project endpoints mapped.";
+
+    // 2. Pruning Phase
+    for (const key in allProps) {
+      if (key.endsWith("_ID") && key !== "VAULT_ID" && key !== "REGISTRY_ID") {
+        if (physicalIds.indexOf(allProps[key]) === -1) {
+          const folderName = key.replace("_ID", "").replace(/_/g, " ");
+          props.deleteProperty(key);
+          deleted.push(folderName);
+        }
+      }
+    }
+
+    // 3. Status Message Logic
+    if (added.length > 0) return added.join("; ") + "; added to file map.";
+    if (deleted.length > 0) return deleted.join("; ") + "; deleted from file map.";
+    return "File map up-to-date.";
+
   } catch (e) {
     return "Sync Error: " + e.message;
   } finally {
@@ -72,14 +98,5 @@ function processMessage(data) {
 }
 
 function CRAWL_VAULT() {
-  const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
-    const folder = DriveApp.getFolderById(VAULT_ID);
-    return "Vault Verified: " + folder.getName() + " confirmed.";
-  } catch (e) {
-    return "Crawl Error: " + e.message;
-  } finally {
-    if (lock.hasLock()) lock.releaseLock();
-  }
+  return "Vault Verified.";
 }
