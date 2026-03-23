@@ -63,7 +63,6 @@
     const topic = document.getElementById('topic-input').value.trim();
     if (!msg) return;
 
-    // ── Slash command intercept ─────────────────────────────────────────────
     if (msg.startsWith('/')) {
       addBubble(msg, 'sent');
       document.getElementById('msg-input').value = "";
@@ -71,7 +70,6 @@
       return;
     }
 
-    // ── Normal message flow ─────────────────────────────────────────────────
     addBubble(msg, 'sent');
     document.getElementById('msg-input').value   = "";
     document.getElementById('topic-input').value = "";
