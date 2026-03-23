@@ -1,17 +1,14 @@
 /**
- * ANCHOR CORE v9.0.0 - Consolidated Bridge & Dispatcher
- * Merged from v8 source: 1_tools, 3_dispatcher, 6_bridge
+ * ANCHOR CORE v9.1.1 - Simplified Validated Bridge
+ * Standardized on gemini-2.5-flash-lite
  */
 
 const CONFIG = {
-  PROJECT_ID: PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID') || 'acp-vertex-core',
-  LOCATION: PropertiesService.getScriptProperties().getProperty('VERTEX_LOCATION') || 'us-central1',
-  MODEL_ID: PropertiesService.getScriptProperties().getProperty('MODEL_ID') || 'gemini-1.5-pro'
+  PROJECT_ID: PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID'),
+  LOCATION: PropertiesService.getScriptProperties().getProperty('VERTEX_LOCATION'),
+  MODEL_ID: "gemini-2.5-flash-lite" // Hard-coded for stability during verification
 };
 
-/**
- * WEB APP ROUTER
- */
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -24,20 +21,12 @@ function doPost(e) {
   }
 }
 
-/**
- * DISPATCHER LOGIC
- */
 function routeRequest(payload) {
   const prompt = payload.prompt || payload.message;
   const context = payload.context || "";
-  
-  // Logic to determine if we hit Vertex or AI Studio
   return callVertexAI(prompt, context);
 }
 
-/**
- * VERTEX AI BRIDGE
- */
 function callVertexAI(prompt, context) {
   const url = `https://${CONFIG.LOCATION}-aiplatform.googleapis.com/v1/projects/${CONFIG.PROJECT_ID}/locations/${CONFIG.LOCATION}/publishers/google/models/${CONFIG.MODEL_ID}:streamGenerateContent`;
   
@@ -57,8 +46,12 @@ function callVertexAI(prompt, context) {
   };
 
   const response = UrlFetchApp.fetch(url, options);
+  const resCode = response.getResponseCode();
+  const resText = response.getContentText();
+
   return {
-    status: response.getResponseCode() === 200 ? "success" : "error",
-    response: response.getContentText()
+    status: resCode === 200 ? "success" : "error",
+    code: resCode,
+    response: resText
   };
 }
