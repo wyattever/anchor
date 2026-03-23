@@ -9,22 +9,24 @@
    --success-green: #34A853;
  }
  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+ 
  html, body {
    background: #E8EAED;
    margin: 0;
    padding: 0;
    display: flex;
-   justify-content: center;
+   flex-direction: column;
    align-items: center;
-   height: 100vh;
-   overflow: hidden;
+   min-height: 100vh;
+   overflow-y: auto; /* Allow scrolling if the screen is shorter than the UI + margins */
    font-family: 'Google Sans', Roboto, Helvetica, Arial, sans-serif;
  }
 
  #iphone-se-container {
    width: 375px;
    height: 667px;
-   margin: 50px 0;
+   margin-top: 50px;    /* 50px Top Whitespace */
+   margin-bottom: 50px; /* 50px Bottom Whitespace */
    background: var(--bg);
    display: flex;
    flex-direction: column;
@@ -32,6 +34,7 @@
    box-shadow: 0 12px 28px rgba(0,0,0,0.15);
    border: 1px solid var(--border);
    overflow: hidden;
+   flex-shrink: 0; /* Prevents the container from squishing */
  }
 
  .header-consolidated {
@@ -62,7 +65,7 @@
    cursor: pointer;
    color: var(--google-blue);
    font-size: 20px !important;
-   margin-right: 20px; /* 20px to the left of VAULT group */
+   margin-right: 20px;
  }
 
  .btn-row {
