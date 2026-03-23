@@ -17,8 +17,6 @@
    display: flex;
    flex-direction: column;
    align-items: center;
-   /* Use dynamic viewport height to account for mobile browser bars */
-   height: 100vh;
    height: 100dvh; 
    overflow: hidden;
    font-family: 'Google Sans', Roboto, Helvetica, Arial, sans-serif;
@@ -27,7 +25,6 @@
  #iphone-se-container {
    width: 100%;
    max-width: 375px;
-   /* Subtract the 20px top margin and a bottom buffer for Safari */
    height: calc(100dvh - 40px); 
    margin-top: 20px;
    background: var(--bg);
@@ -65,32 +62,35 @@
    white-space: nowrap;
  }
 
- .header-sync-btn {
-   cursor: pointer;
-   color: var(--google-blue);
-   font-size: 18px !important;
-   margin-right: 12px;
- }
-
  .btn-row {
    display: flex;
    align-items: center;
    justify-content: space-between;
    padding: 10px 16px;
-   gap: 6px;
+   gap: 8px;
    flex-shrink: 0;
  }
- .btn-row button {
+
+ /* Standardized circular button style for Agent row */
+ .btn-row button, .agent-sync-btn {
    background: var(--bg);
    border: 1px solid var(--border);
    color: var(--text-light);
    border-radius: 20px;
-   padding: 6px 0;
-   font-size: 10px;
-   font-weight: 500;
+   height: 36px; /* Explicit height to match */
+   display: flex;
+   align-items: center;
+   justify-content: center;
    flex: 1;
    cursor: pointer;
+   transition: all 0.2s ease;
  }
+
+ .agent-sync-btn {
+   flex: 0 0 45px; /* Slightly narrower than agent buttons but same height */
+   color: var(--google-blue);
+ }
+
  .btn-row button.active {
    background: #E8F0FE;
    color: var(--google-blue);
@@ -105,8 +105,6 @@
    flex-direction: column;
    gap: 10px;
    background: #F8F9FA;
-   /* Smooth scrolling for iOS */
-   -webkit-overflow-scrolling: touch;
  }
  .bubble {
    padding: 10px 14px;
@@ -115,7 +113,6 @@
    line-height: 1.4;
    border: 1px solid var(--border);
    max-width: 85%;
-   word-wrap: break-word;
  }
  .sent { background: var(--surface); color: var(--text); align-self: flex-end; border-bottom-right-radius: 4px; }
  .received { background: #FFFFFF; color: var(--google-blue); align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }

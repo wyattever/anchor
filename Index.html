@@ -3,9 +3,6 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#E8EAED">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
   <?!= include('styles'); ?>
 </head>
@@ -16,18 +13,22 @@
         <div class="status-light"></div>
         <span class="status-label">MODEL</span>
       </div>
-      <div class="header-title">ANCHOR v10.1.6</div>
+      <div class="header-title">ANCHOR v10.1.7</div>
       <div class="status-group">
-        <span class="material-symbols-outlined header-sync-btn" onclick="runDiscovery()">directory_sync</span>
         <span class="status-label">VAULT</span>
         <div class="status-light"></div>
       </div>
     </div>
 
-    <div class="btn-row" id="agent-row"></div>
+    <div class="btn-row">
+      <div id="agent-row" style="display:flex; gap:8px; flex:1;"></div>
+      <div class="agent-sync-btn" onclick="runDiscovery()">
+        <span class="material-symbols-outlined">directory_sync</span>
+      </div>
+    </div>
 
     <div class="btn-row" style="padding-top:0;">
-      <div style="display:flex; justify-content: space-between; flex: 1;">
+      <div style="display:flex; justify-content: space-between; flex: 1; gap:6px;">
         <button class="active" onclick="setFormat('chat', this)">chat</button>
         <button onclick="setFormat('txt', this)">txt</button>
         <button onclick="setFormat('csv', this)">csv</button>
@@ -53,7 +54,7 @@
   </div>
 
   <script>
-    const UI_VERSION = 'v10.1.6'; 
+    const UI_VERSION = 'v10.1.7'; 
     let activeAgent = ''; let activeId = ''; let activeFormat = 'chat';
 
     function initAgentButtons() {
@@ -112,24 +113,14 @@
       const msg = document.getElementById('msg-input').value;
       const topic = document.getElementById('topic-input').value;
       if (!msg) return;
-      
       addBubble(msg, 'sent');
-      
-      // Clear both inputs immediately
       document.getElementById('msg-input').value = "";
       document.getElementById('topic-input').value = "";
-      
       document.getElementById('thinking').style.visibility = "visible";
       google.script.run.withSuccessHandler(res => {
         document.getElementById('thinking').style.visibility = "hidden";
         addBubble(res.response || "Success", "received");
-      }).processMessage({ 
-        agent: activeAgent, 
-        id: activeId, 
-        format: activeFormat, 
-        topic: topic, 
-        message: msg 
-      });
+      }).processMessage({ agent: activeAgent, id: activeId, format: activeFormat, topic: topic, message: msg });
     }
 
     window.onload = initAgentButtons;
