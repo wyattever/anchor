@@ -1,9 +1,9 @@
 /**
- * WebApp.gs — ANCHOR v10.0.4 | UI Controller
- * Bridges Index.html to the 0_core.gs Gateway with Precise Status Reporting.
+ * WebApp.gs — ANCHOR v10.0.5 | UI Controller
+ * Bridges Index.html to the 0_core.gs Gateway with Explicit Trash Filtering.
  */
 
-const UI_VERSION = 'v10.0.4';
+const UI_VERSION = 'v10.0.5';
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
@@ -18,7 +18,7 @@ function include(filename) {
 }
 
 /**
- * RECONCILE_NETWORK — Symmetric Sync with formatted status messages.
+ * RECONCILE_NETWORK — Now with explicit trash filtering to prevent ghost properties.
  */
 function RECONCILE_NETWORK() {
   const lock = LockService.getScriptLock();
@@ -33,21 +33,23 @@ function RECONCILE_NETWORK() {
     let deleted = [];
     let physicalIds = [];
 
-    // 1. Discovery Phase
+    // 1. Discovery Phase (Only non-trashed folders)
     while (folders.hasNext()) {
       const folder = folders.next();
-      const folderName = folder.getName();
-      const key = folderName.toUpperCase().replace(/\s+/g, '_') + "_ID";
-      const id = folder.getId();
-      physicalIds.push(id);
+      if (!folder.isTrashed()) {
+        const folderName = folder.getName();
+        const key = folderName.toUpperCase().replace(/\s+/g, '_') + "_ID";
+        const id = folder.getId();
+        physicalIds.push(id);
 
-      if (!allProps[key]) {
-        props.setProperty(key, id);
-        added.push(folderName);
+        if (!allProps[key]) {
+          props.setProperty(key, id);
+          added.push(folderName);
+        }
       }
     }
 
-    // 2. Pruning Phase
+    // 2. Pruning Phase (Remove properties where ID is not in the active physical list)
     for (const key in allProps) {
       if (key.endsWith("_ID") && key !== "VAULT_ID" && key !== "REGISTRY_ID") {
         if (physicalIds.indexOf(allProps[key]) === -1) {
@@ -58,7 +60,6 @@ function RECONCILE_NETWORK() {
       }
     }
 
-    // 3. Status Message Logic
     if (added.length > 0) return added.join("; ") + "; added to file map.";
     if (deleted.length > 0) return deleted.join("; ") + "; deleted from file map.";
     return "File map up-to-date.";
@@ -97,6 +98,4 @@ function processMessage(data) {
   return JSON.parse(response.getContent());
 }
 
-function CRAWL_VAULT() {
-  return "Vault Verified.";
-}
+function CRAWL_VAULT() { return "Vault Verified."; }
