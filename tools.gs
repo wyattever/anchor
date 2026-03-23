@@ -67,3 +67,13 @@ function testMemory() {
   console.log("✅ MEMORY UPDATED. CURRENT STATE:", JSON.stringify(result, null, 2));
   return result;
 }
+
+/**
+ * Test the Search Engine
+ */
+function testSearch() {
+  console.log("⚓ TESTING SEARCH ENGINE...");
+  const result = findFileInRegistry('VAULT_ID', 'agent_memory.json');
+  console.log("🔍 SEARCH RESULT:", JSON.stringify(result, null, 2));
+  return result;
+}
