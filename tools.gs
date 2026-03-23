@@ -38,3 +38,19 @@ function testBrain() {
   console.log("⚓ BRAIN RESPONSE:", JSON.stringify(result, null, 2));
   return result;
 }
+
+/**
+ * Test the Registry Crawler & Drive access
+ */
+function testCrawl() {
+  console.log("⚓ INITIATING REGISTRY CRAWL...");
+  const report = reconcileRegistry();
+  
+  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+  if (vaultId) {
+    const vaultMap = getFolderMap(vaultId);
+    console.log("⚓ VAULT CONTENTS:", JSON.stringify(vaultMap, null, 2));
+  }
+  
+  return report;
+}
