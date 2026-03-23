@@ -1,42 +1,126 @@
 <script>
   const COMMAND_MAP = {
-    '/list-txt':  'txt',
-    '/list-csv':  'csv',
-    '/list-json': 'json',
-    '/list-all':  null
+    '/list-txt':  { type: 'list',     filter: 'txt',  help: 'List all .txt files in active agent folder'      },
+    '/list-csv':  { type: 'list',     filter: 'csv',  help: 'List all .csv files in active agent folder'      },
+    '/list-json': { type: 'list',     filter: 'json', help: 'List all .json files in active agent folder'     },
+    '/list-all':  { type: 'list',     filter: null,   help: 'List all files in active agent folder'           },
+    '/dirs-root': { type: 'dirs',                     help: 'List all directories in active agent folder'     },
+    '/dirs-new':  { type: 'dirs-new',                 help: 'Create a new directory in active agent folder'   },
+    '/commands':  { type: 'commands',                 help: 'List all available commands'                     }
   };
+
+  let pendingCommand = null;
 
   function handleSlashCommand(cmd, folderId) {
     if (!(cmd in COMMAND_MAP)) {
-      addBubble('Unknown command: ' + cmd, 'received');
+      addBubble('Unknown command: ' + cmd + '<br>Type /commands to see all available commands.', 'received', true);
       return;
     }
 
-    document.getElementById('thinking').style.visibility = "visible";
+    const command = COMMAND_MAP[cmd];
 
-    google.script.run.withSuccessHandler(res => {
-      document.getElementById('thinking').style.visibility = "hidden";
-
-      if (res.status !== 'OK' || !res.files) {
-        addBubble('Error: ' + (res.message || 'Unknown error'), 'received');
-        return;
-      }
-
-      if (res.files.length === 0) {
-        const ext = COMMAND_MAP[cmd] ? '.' + COMMAND_MAP[cmd] : '';
-        addBubble('No ' + ext + ' files found in ' + activeAgent + "'s folder.", 'received');
-        return;
-      }
-
-      const lines = res.files.map(f =>
-        '<a href="https://drive.google.com/file/d/' + f.fileId + '/view" target="_blank">' +
-        f.name + '</a>'
+    // ── /commands ─────────────────────────────────────────────────────────────
+    if (command.type === 'commands') {
+      const lines = Object.entries(COMMAND_MAP).map(([key, val]) =>
+        '<b>' + key + '</b> — ' + val.help
       );
       addBubble(lines.join('<br>'), 'received', true);
+      return;
+    }
 
-    }).withFailureHandler(err => {
-      document.getElementById('thinking').style.visibility = "hidden";
-      addBubble('Error: ' + err.message, 'received');
-    }).listFiles({ folderId: folderId, filter: COMMAND_MAP[cmd] });
+    // ── /list-* ───────────────────────────────────────────────────────────────
+    if (command.type === 'list') {
+      document.getElementById('thinking').style.visibility = "visible";
+
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+
+        if (res.status !== 'OK' || !res.files) {
+          addBubble('Error: ' + (res.message || 'Unknown error'), 'received');
+          return;
+        }
+        if (res.files.length === 0) {
+          const ext = command.filter ? '.' + command.filter : '';
+          addBubble('No ' + ext + ' files found in ' + activeAgent + "'s folder.", 'received');
+          return;
+        }
+        const lines = res.files.map(f =>
+          '<a href="https://drive.google.com/file/d/' + f.fileId + '/view" target="_blank">' +
+          f.name + '</a>'
+        );
+        addBubble(lines.join('<br>'), 'received', true);
+
+      }).withFailureHandler(err => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble('Error: ' + err.message, 'received');
+      }).listFiles({ folderId: folderId, filter: command.filter });
+    }
+
+    // ── /dirs-root ────────────────────────────────────────────────────────────
+    else if (command.type === 'dirs') {
+      document.getElementById('thinking').style.visibility = "visible";
+
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+
+        if (res.status !== 'OK' || !res.folders) {
+          addBubble('Error: ' + (res.message || 'Unknown error'), 'received');
+          return;
+        }
+        if (res.folders.length === 0) {
+          addBubble('No directories found in ' + activeAgent + "'s folder.", 'received');
+          return;
+        }
+        const lines = res.folders.map(f =>
+          '<a href="https://drive.google.com/drive/folders/' + f.folderId + '" target="_blank">' +
+          f.name + '</a> (' + f.fileCount + ' file' + (f.fileCount !== 1 ? 's' : '') + ')'
+        );
+        addBubble(lines.join('<br>'), 'received', true);
+
+      }).withFailureHandler(err => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble('Error: ' + err.message, 'received');
+      }).listDirs({ folderId: folderId });
+    }
+
+    // ── /dirs-new ─────────────────────────────────────────────────────────────
+    else if (command.type === 'dirs-new') {
+      pendingCommand = { type: 'dirs-new', folderId: folderId };
+      addBubble('What would you like to name the new directory?', 'received');
+    }
+  }
+
+  function resolvePendingCommand(msg) {
+    if (!pendingCommand) return false;
+
+    const cmd  = pendingCommand;
+    pendingCommand = null;
+
+    if (cmd.type === 'dirs-new') {
+      const dirName = msg.trim();
+      if (!dirName) {
+        addBubble('Directory name cannot be empty. Try /dirs-new again.', 'received');
+        return true;
+      }
+
+      document.getElementById('thinking').style.visibility = "visible";
+
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        if (res.status === 'OK') {
+          const html =
+            '<a href="https://drive.google.com/drive/folders/' + res.folderId +
+            '" target="_blank">' + res.name + '</a> created.';
+          addBubble(html, 'received', true);
+        } else {
+          addBubble('Error: ' + (res.message || 'Unknown error'), 'received');
+        }
+      }).withFailureHandler(err => {
+        document.getElementById('thinking').style.visibility = "hidden";
+        addBubble('Error: ' + err.message, 'received');
+      }).createDir({ folderId: cmd.folderId, name: dirName });
+    }
+
+    return true;
   }
 </script>
