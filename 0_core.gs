@@ -1,18 +1,34 @@
 /**
- * ANCHOR CORE v9.1.1 - Simplified Validated Bridge
- * Standardized on gemini-2.5-flash-lite
+ * ANCHOR CORE v9.7.0 - Unified Orchestrator
  */
 
 const CONFIG = {
   PROJECT_ID: PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID'),
   LOCATION: PropertiesService.getScriptProperties().getProperty('VERTEX_LOCATION'),
-  MODEL_ID: "gemini-2.5-flash-lite" // Hard-coded for stability during verification
+  MODEL_ID: "gemini-2.5-flash-lite"
 };
 
+/**
+ * WEBHOOK ENTRY POINT
+ */
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
-    const result = routeRequest(data);
+    const payload = JSON.parse(e.postData.contents);
+    const intent = payload.intent || "REASON"; // Default to reasoning
+    
+    let result;
+    switch(intent) {
+      case "LOG":
+        result = writeProjectLog(payload.project, payload.content);
+        break;
+      case "SEARCH":
+        result = findFileInRegistry(payload.registry, payload.query);
+        break;
+      case "REASON":
+      default:
+        result = processReasoning(payload.message || payload.prompt);
+    }
+
     return ContentService.createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
@@ -21,37 +37,30 @@ function doPost(e) {
   }
 }
 
+/**
+ * VERTEX AI BRIDGE
+ */
 function routeRequest(payload) {
-  const prompt = payload.prompt || payload.message;
-  const context = payload.context || "";
-  return callVertexAI(prompt, context);
-}
-
-function callVertexAI(prompt, context) {
   const url = `https://${CONFIG.LOCATION}-aiplatform.googleapis.com/v1/projects/${CONFIG.PROJECT_ID}/locations/${CONFIG.LOCATION}/publishers/google/models/${CONFIG.MODEL_ID}:streamGenerateContent`;
   
-  const payload = {
+  const body = {
     contents: [{
       role: "user",
-      parts: [{ text: context + "\n\n" + prompt }]
+      parts: [{ text: (payload.context || "") + "\n\n" + payload.prompt }]
     }]
   };
 
   const options = {
     method: "post",
     contentType: "application/json",
-    payload: JSON.stringify(payload),
+    payload: JSON.stringify(body),
     headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
     muteHttpExceptions: true
   };
 
   const response = UrlFetchApp.fetch(url, options);
-  const resCode = response.getResponseCode();
-  const resText = response.getContentText();
-
   return {
-    status: resCode === 200 ? "success" : "error",
-    code: resCode,
-    response: resText
+    status: response.getResponseCode() === 200 ? "success" : "error",
+    response: response.getContentText()
   };
 }
