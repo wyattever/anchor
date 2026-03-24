@@ -110,17 +110,15 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
 
   console.log('\n── SECTION 3: FUNCTION AVAILABILITY ──');
 
-  const expectedFunctions = [
+  // Public functions — testable via eval()
+  const publicFunctions = [
     // 0_core.js
-    'doPost', 'handleIngest_', 'generateStructuredContent_',
-    'processReasoning_', 'buildResponse_', 'getVertexEndpoint_',
+    'doPost', 'getVertexEndpoint_',
     // web.js
     'doGet', 'include', 'includeFromDrive_', 'getAgentConfig',
-    'processMessage', 'readFile', 'logMessage_',
-    'listFiles', 'listDirs', 'createDir',
+    'processMessage', 'readFile', 'listFiles', 'listDirs', 'createDir',
     // 2_executor.js
     'writeProjectLog', 'commitSystemUpdate', 'ingestToVault',
-    'handleRead_', 'handleList_',
     // 3_crawl.js
     'CRAWL_VAULT', 'generateSystemPrompt', 'processReasoning',
     // 4_vault_map.js
@@ -133,10 +131,44 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
     'FIND_GEO_PRI_001_FILES_DATED'
   ];
 
-  expectedFunctions.forEach(fn => {
-    typeof eval(fn) === 'function'
-      ? pass('FUNCTIONS', fn + '()')
-      : fail('FUNCTIONS', fn + '() — NOT FOUND');
+  publicFunctions.forEach(fn => {
+    try {
+      typeof eval(fn) === 'function'
+        ? pass('FUNCTIONS', fn + '()')
+        : fail('FUNCTIONS', fn + '() — NOT FOUND');
+    } catch(e) {
+      fail('FUNCTIONS', fn + '() — eval threw: ' + e.message);
+    }
+  });
+
+  // Private functions (underscore suffix) — tested by calling them directly
+  // and catching ReferenceError if missing
+  const privateFunctions = [
+    // 0_core.js
+    { name: 'handleIngest_',             test: () => typeof handleIngest_ },
+    { name: 'generateStructuredContent_',test: () => typeof generateStructuredContent_ },
+    { name: 'buildResponse_',            test: () => typeof buildResponse_ },
+    { name: 'processReasoning_',         test: () => typeof processReasoning_ },
+    // web.js
+    { name: 'logMessage_',               test: () => typeof logMessage_ },
+    { name: 'includeFromDrive_',         test: () => typeof includeFromDrive_ },
+    // 2_executor.js
+    { name: 'handleRead_',               test: () => typeof handleRead_ },
+    { name: 'handleList_',               test: () => typeof handleList_ },
+    // 4_vault_map.js
+    { name: 'getVaultMapSheetId_',       test: () => typeof getVaultMapSheetId_ },
+    { name: 'loadVaultMap_',             test: () => typeof loadVaultMap_ },
+    { name: 'deleteVaultMapRow_',        test: () => typeof deleteVaultMapRow_ }
+  ];
+
+  privateFunctions.forEach(fn => {
+    try {
+      fn.test() === 'function'
+        ? pass('FUNCTIONS', fn.name + '() — private, in scope')
+        : fail('FUNCTIONS', fn.name + '() — NOT FOUND');
+    } catch(e) {
+      fail('FUNCTIONS', fn.name + '() — threw: ' + e.message);
+    }
   });
 
   // ===========================================================================
