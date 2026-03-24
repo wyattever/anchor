@@ -234,3 +234,156 @@ function VALIDATE_STAGE_2() {
     ? console.log('🚀 Stage 2 clean — ready for Stage 3')
     : console.log('⚠️  Fix failures before proceeding to Stage 3');
 }
+
+// =============================================================================
+// STAGE 4 MIGRATION VALIDATION — run once, then remove
+// =============================================================================
+
+function VALIDATE_STAGE_4() {
+  const results = [];
+  const pass = (msg) => { results.push('✅ ' + msg); };
+  const fail = (msg) => { results.push('❌ ' + msg); };
+
+  // --- WebApp.js must be gone ---
+  try {
+    HtmlService.createHtmlOutputFromFile('WebApp');
+    fail('WebApp.js still present in project');
+  } catch(e) {
+    pass('WebApp.js removed from project');
+  }
+
+  // --- web.js entry points exist ---
+  try {
+    if (typeof doGet === 'function') {
+      pass('web.js: doGet() found in scope');
+    } else {
+      fail('web.js: doGet() not found');
+    }
+  } catch(e) {
+    fail('web.js: doGet() check threw — ' + e.message);
+  }
+
+  try {
+    if (typeof includeFromDrive_ === 'function') {
+      pass('web.js: includeFromDrive_() found in scope');
+    } else {
+      fail('web.js: includeFromDrive_() not found');
+    }
+  } catch(e) {
+    fail('web.js: includeFromDrive_() check threw — ' + e.message);
+  }
+
+  try {
+    if (typeof processMessage === 'function') {
+      pass('web.js: processMessage() found in scope');
+    } else {
+      fail('web.js: processMessage() not found');
+    }
+  } catch(e) {
+    fail('web.js: processMessage() check threw — ' + e.message);
+  }
+
+  // --- tools.js one-off functions exist ---
+  try {
+    if (typeof setupRegistry === 'function') {
+      pass('tools.js: setupRegistry() found in scope');
+    } else {
+      fail('tools.js: setupRegistry() not found');
+    }
+  } catch(e) {
+    fail('tools.js: setupRegistry() check threw — ' + e.message);
+  }
+
+  try {
+    if (typeof registerClientJsFiles === 'function') {
+      pass('tools.js: registerClientJsFiles() found in scope');
+    } else {
+      fail('tools.js: registerClientJsFiles() not found');
+    }
+  } catch(e) {
+    fail('tools.js: registerClientJsFiles() check threw — ' + e.message);
+  }
+
+  // --- All four Drive JS keys readable ---
+  ['JS-COMMANDS', 'JS-SCRIPTS', 'JS-VAULT-MAP-CLIENT', 'JS-MEMORY-CLIENT'].forEach(key => {
+    try {
+      const id = getFolderIdByName_(key);
+      if (!id) { fail('Drive JS: ' + key + ' — no VAULT_MAP entry'); return; }
+      const content = DriveApp.getFileById(id).getBlob().getDataAsString();
+      content.length > 0
+        ? pass('Drive JS: ' + key + ' readable (' + content.length + ' chars)')
+        : fail('Drive JS: ' + key + ' — file is empty');
+    } catch(e) {
+      fail('Drive JS: ' + key + ' — ' + e.message);
+    }
+  });
+
+  // --- includeFromDrive_ returns script tag for JS-COMMANDS ---
+  try {
+    const result = includeFromDrive_('JS-COMMANDS');
+    result.includes('<script>') && result.includes('</script>')
+      ? pass('includeFromDrive_: JS-COMMANDS wraps correctly in script tags')
+      : fail('includeFromDrive_: JS-COMMANDS output missing script tags');
+  } catch(e) {
+    fail('includeFromDrive_: threw — ' + e.message);
+  }
+
+  // --- includeFromDrive_ returns error script tag for missing key ---
+  try {
+    const result = includeFromDrive_('JS-DOES-NOT-EXIST');
+    result.includes('console.error')
+      ? pass('includeFromDrive_: missing key returns error script tag gracefully')
+      : fail('includeFromDrive_: missing key did not return error script tag');
+  } catch(e) {
+    fail('includeFromDrive_: missing key threw instead of degrading gracefully — ' + e.message);
+  }
+
+  // --- Agent config resolves all three agents ---
+  try {
+    const agents = getAgentConfig();
+    const missing = agents.filter(a => a.id === 'MISSING_ID');
+    missing.length === 0
+      ? pass('getAgentConfig: all 3 agents resolve (' + agents.map(a => a.name).join(', ') + ')')
+      : fail('getAgentConfig: missing IDs for — ' + missing.map(a => a.name).join(', '));
+  } catch(e) {
+    fail('getAgentConfig: threw — ' + e.message);
+  }
+
+  // --- PING routing still clean ---
+  try {
+    const pingRes = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({ intent: 'PING' }) } }).getContent()
+    );
+    pingRes.status === 'OK'
+      ? pass('doPost: PING routing OK')
+      : fail('doPost: PING returned unexpected status — ' + JSON.stringify(pingRes));
+  } catch(e) {
+    fail('doPost: PING threw — ' + e.message);
+  }
+
+  // --- Index.html contains includeFromDrive_ calls ---
+  try {
+    const html = HtmlService.createHtmlOutputFromFile('Index').getContent();
+    html.includes('includeFromDrive_') || html.includes('includeFromDrive_') || html.includes('includeFromDrive_')
+      ? pass('Index.html: includeFromDrive_() calls present (encoded)')
+      : fail('Index.html: includeFromDrive_() calls not found');
+    (html.includes('JS-COMMANDS') || html.includes('JS-COMMANDS')) &&
+    (html.includes('JS-SCRIPTS')  || html.includes('JS-SCRIPTS'))
+      ? pass('Index.html: JS-COMMANDS and JS-SCRIPTS referenced (encoded)')
+      : fail('Index.html: JS-COMMANDS or JS-SCRIPTS reference missing');
+  } catch(e) {
+    fail('Index.html: check threw — ' + e.message);
+  }
+
+  // --- Report ---
+  const passed = results.filter(r => r.startsWith('✅')).length;
+  const failed = results.filter(r => r.startsWith('❌')).length;
+  console.log('\n⚓ STAGE 4 VALIDATION REPORT');
+  console.log('='.repeat(40));
+  results.forEach(r => console.log(r));
+  console.log('='.repeat(40));
+  console.log('PASSED: ' + passed + ' / FAILED: ' + failed);
+  failed === 0
+    ? console.log('🚀 Stage 4 clean — migration complete')
+    : console.log('⚠️  Fix failures before deploying');
+}
