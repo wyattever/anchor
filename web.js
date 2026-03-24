@@ -1,9 +1,14 @@
 /**
- * WebApp.gs — ANCHOR v10.1.7 | UI Controller + Message Logger
+ * web.gs — ANCHOR v10.2.0 | UI Controller + Message Logger
+ * Stage 4: Minimal footprint. All client JS loaded from Drive.
  */
-const UI_VERSION       = 'v10.1.7';
+const UI_VERSION       = 'v10.2.0';
 const NETWORK_REG_ID   = '175th9uat0P52l9dnjAScpzdXfGl0JGoj4GyGmYuaOZ0';
 const PRIMARY_AGENT_ID = 'GEO-PRI-001';
+
+// =============================================================================
+// ENTRY POINTS
+// =============================================================================
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
@@ -16,6 +21,31 @@ function doGet() {
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
+
+/**
+ * includeFromDrive_
+ *
+ * Fetches a JS file from Drive by VAULT_MAP key.
+ * Wraps content in <script> tags for injection into Index.html.
+ * Files stored in GEO-PRI-001 — agents can update them directly.
+ * Changes are live on next page load — no clasp push or redeploy needed.
+ *
+ * @param {string} vaultMapKey  VAULT_MAP key e.g. 'JS-COMMANDS'
+ * @returns {string}            <script>...</script> block
+ */
+function includeFromDrive_(vaultMapKey) {
+  const fileId = getFolderIdByName_(vaultMapKey);
+  if (!fileId) {
+    console.error('[includeFromDrive_] VAULT_MAP has no entry for: ' + vaultMapKey);
+    return '<script>console.error("ANCHOR: Failed to load ' + vaultMapKey + '")</script>';
+  }
+  const content = DriveApp.getFileById(fileId).getBlob().getDataAsString();
+  return '<script>\n' + content + '\n</script>';
+}
+
+// =============================================================================
+// AGENT CONFIG
+// =============================================================================
 
 function getAgentConfig() {
   const agents = [
@@ -30,11 +60,14 @@ function getAgentConfig() {
   }));
 }
 
+// =============================================================================
+// MESSAGE PROCESSING
+// =============================================================================
+
 function processMessage(data) {
   const isChat = (data.format === 'chat');
   const intent = isChat ? 'REASON' : 'INGEST';
 
-  // ── Log outbound message from PRIMARY ──────────────────────────────────────
   logMessage_({
     agent:     data.agent,
     agentId:   data.id,
@@ -52,7 +85,6 @@ function processMessage(data) {
     folderId: data.id,
     format:   data.format,
     name:     (data.topic || 'ingest_' + Date.now()) + '.' + data.format,
-    // For all non-chat formats the message field is the prompt/content
     content:  isChat ? null : data.message,
     prompt:   isChat
                 ? '[' + data.agent + ' | ' + data.id + '] ' + data.message
@@ -70,6 +102,10 @@ function processMessage(data) {
   return JSON.parse(response.getContent());
 }
 
+// =============================================================================
+// NETWORK REGISTRY LOGGING
+// =============================================================================
+
 function logMessage_(data) {
   const ss        = SpreadsheetApp.openById(NETWORK_REG_ID);
   const timestamp = new Date().toISOString();
@@ -82,11 +118,17 @@ function logMessage_(data) {
     data.url      || '',
     data.direction
   ];
+
   const primarySheet = ss.getSheetByName('Primary');
   if (primarySheet) primarySheet.appendRow(row);
+
   const agentSheet = ss.getSheetByName(data.agent);
   if (agentSheet) agentSheet.appendRow(row);
 }
+
+// =============================================================================
+// FILE SYSTEM OPERATIONS (called from client via google.script.run)
+// =============================================================================
 
 function listFiles(data) {
   const folderId = data.folderId;
@@ -155,21 +197,4 @@ function createDir(data) {
   } catch (err) {
     return { status: 'ERROR', message: err.message };
   }
-}
-
-function setupRegistry() {
-  const ss       = SpreadsheetApp.openById(NETWORK_REG_ID);
-  const existing = ss.getSheetByName('REGISTRY');
-  if (existing) ss.deleteSheet(existing);
-  const sheet = ss.insertSheet('REGISTRY', 0);
-  sheet.appendRow(['NAME', 'AGENT_ID', 'FOLDER_ID', 'STATUS']);
-  sheet.setFrozenRows(1);
-  const agents = [
-    ['PRIMARY',  'GEO-PRI-001', '1k6BYtrZSGx5zgQccpiW1NNXCnIXqNRqj', 'ACTIVE'],
-    ['Panto',    'PAN-ANA-001', '1QnrCSWMim4xPhUoXYzyAkXcYYu7y3vLt', 'ACTIVE'],
-    ['Lexicona', 'LEX-RES-777', '1L6THn33tM57B95Mpbydwoj2OpQSie0oG', 'ACTIVE'],
-    ['Synapse',  'SYN-ARC-555', '1u9ajuwB76DqRLN5gXJ3cRv2yugKi99a-', 'ACTIVE']
-  ];
-  agents.forEach(row => sheet.appendRow(row));
-  console.log('[REGISTRY] Setup complete.');
 }

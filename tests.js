@@ -2,6 +2,37 @@
  * tests.gs — ANCHOR v9 | Diagnostic + Discovery Test Suite
  * Consolidated from tests.js and test_discovery.js
  */
+function REGISTER_AND_CLEAN_JS_FILES() {
+  registerFolder_('JS-SCRIPTS',   '1WW1YrA_XxjCAong24PFV9nJGtYRw3-W9');
+  registerFolder_('JS-COMMANDS',  '1SBs242jHt9HI9ACEoKssboLGZO-_8wDy');
+  console.log('JS-SCRIPTS and JS-COMMANDS registered.');
+
+  DriveApp.getFileById('1Qyr0U14jHxY5Z9G_E08IvPP08MyNbolQ').setTrashed(true);
+  DriveApp.getFileById('1YWDHnilGYTbGLWGu3w0c99LZgJjiLSuC').setTrashed(true);
+  console.log('Older duplicates trashed.');
+}
+
+function FIND_GEO_PRI_001_FILES_DATED() {
+  const folderId = '1k6BYtrZSGx5zgQccpiW1NNXCnIXqNRqj';
+  const folder   = DriveApp.getFolderById(folderId);
+  const files    = folder.getFiles();
+  while (files.hasNext()) {
+    const f = files.next();
+    console.log(f.getName() + ' | ' + f.getLastUpdated() + ' | ' + f.getId());
+  }
+}
+
+function FIND_GEO_PRI_001_FILES() {
+  const folderId = '1k6BYtrZSGx5zgQccpiW1NNXCnIXqNRqj';
+  const folder   = DriveApp.getFolderById(folderId);
+  const files    = folder.getFiles();
+  while (files.hasNext()) {
+    const f = files.next();
+    console.log(f.getName() + ' → ' + f.getId());
+  }
+}
+
+
 
 // =============================================================================
 // ANCHOR FULL DIAGNOSTICS
