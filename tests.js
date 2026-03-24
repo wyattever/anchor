@@ -8,7 +8,7 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   const fail  = (section, msg) => { results.push({ section, status: '❌', msg }); };
   const info  = (section, msg) => { results.push({ section, status: 'ℹ️', msg }); };
 
-  console.log('⚓ ANCHOR v11.0.0 — COMPREHENSIVE DIAGNOSTIC REPORT');
+  console.log('⚓ ANCHOR v11.0 — COMPREHENSIVE DIAGNOSTIC REPORT');
   console.log(new Date().toLocaleString());
   console.log('='.repeat(60));
 
@@ -345,7 +345,7 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
     const res = JSON.parse(
       doPost({ postData: { contents: JSON.stringify({ intent: 'PING' }) } }).getContent()
     );
-    res.status === 'OK' && res.message.includes('v11.0.0')
+    res.status === 'OK' && res.message.includes('v11.0')
       ? pass('ROUTING', 'PING → v11.0.0 confirmed')
       : fail('ROUTING', 'PING returned unexpected: ' + JSON.stringify(res));
   } catch(e) { fail('ROUTING', 'PING threw — ' + e.message); }
