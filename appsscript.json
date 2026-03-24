@@ -6,6 +6,11 @@
         "userSymbol": "Drive",
         "serviceId": "drive",
         "version": "v3"
+      },
+      {
+        "userSymbol": "VertexAI",
+        "version": "v1",
+        "serviceId": "aiplatform"
       }
     ]
   },

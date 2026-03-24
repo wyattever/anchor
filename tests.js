@@ -1,5 +1,5 @@
 /**
- * tests.gs — ANCHOR v11.0.0 | Diagnostic + Discovery Test Suite
+ * tests.gs — ANCHOR v11.0.1 | Diagnostic + Discovery Test Suite
  */
 
 function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
@@ -113,7 +113,7 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   // Public functions — testable via eval()
   const publicFunctions = [
     // 0_core.js
-    'doPost', 'getVertexEndpoint_',
+    'doPost',
     // web.js
     'doGet', 'include', 'includeFromDrive_', 'getAgentConfig',
     'processMessage', 'readFile', 'listFiles', 'listDirs', 'createDir',
