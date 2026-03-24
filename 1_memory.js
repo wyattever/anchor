@@ -1,5 +1,5 @@
 /**
-* ANCHOR CORE v9.4.4 - Memory Controller (Blob-Safe)
+* ANCHOR v11.0.0 - Memory Controller (Blob-Safe)
 */
 
 function getPhysicalMemory() {

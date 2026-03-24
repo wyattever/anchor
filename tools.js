@@ -1,5 +1,5 @@
 /**
- * tools.gs — ANCHOR v10.2.0 | One-Time Setup & Utility Functions
+ * tools.gs — ANCHOR v11.0.0 | One-Time Setup & Utility Functions
  * Run manually from Apps Script editor only. Never called by doGet/doPost.
  */
 

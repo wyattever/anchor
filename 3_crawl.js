@@ -1,5 +1,5 @@
 /**
- * 3_crawl.gs — ANCHOR v10.1.1 | Vault Surveyor + System Prompt
+ * 3_crawl.gs — ANCHOR v11.0.0 | Vault Surveyor + System Prompt
  * Fixed: VAULT_MAP keys updated to match actual sheet entries.
  * Fixed: processReasoning() now calls processReasoning_() in 0_core.js.
  */
@@ -50,7 +50,7 @@ function generateSystemPrompt() {
 - GCP Project: ${props.GCP_PROJECT_ID}
 - Primary Vault (ANCHOR-VAULT): ${props.VAULT_ID}
 - Status: ${memory.status || 'ACTIVE'}
-- Version: ${memory.anchor_version || 'v9.2.0'}
+- Version: ${memory.anchor_version || 'v11.0.0'}
 
 ### VAULT REGISTRIES
 - Network Registry: ${networkRegistryId}

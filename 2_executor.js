@@ -1,6 +1,6 @@
 /**
- * 2_executor.gs — ANCHOR v10.2.1 | Action & File Execution
- * v10.2.1: Added handleRead_() and handleList_() for agent file I/O.
+ * 2_executor.gs — ANCHOR v11.0.0 | Action & File Execution
+ * v11.0.0: Added handleRead_() and handleList_() for agent file I/O.
  */
 
 function writeProjectLog(projectName, logContent) {

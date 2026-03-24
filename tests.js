@@ -1,5 +1,5 @@
 /**
- * tests.gs — ANCHOR v9 | Diagnostic + Discovery Test Suite
+ * tests.gs — ANCHOR v11.0.0 | Diagnostic + Discovery Test Suite
  * Consolidated from tests.js and test_discovery.js
  */
 

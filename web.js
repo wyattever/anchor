@@ -1,9 +1,9 @@
 /**
- * web.gs — ANCHOR v10.2.1 | UI Controller + Message Logger
+ * web.gs — ANCHOR v11.0.0 | UI Controller + Message Logger
  * Stage 4: Minimal footprint. All client JS loaded from Drive.
- * v10.2.1: Added readFile() server wrapper for client-side READ intent.
+ * v11.0.0: Added readFile() server wrapper for client-side READ intent.
  */
-const UI_VERSION       = 'v10.2.1';
+const UI_VERSION       = 'v11.0.0';
 const NETWORK_REG_ID   = '175th9uat0P52l9dnjAScpzdXfGl0JGoj4GyGmYuaOZ0';
 const PRIMARY_AGENT_ID = 'GEO-PRI-001';
 

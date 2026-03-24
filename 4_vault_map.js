@@ -1,5 +1,5 @@
 /**
- * 4_vault_map.gs — ANCHOR v9.1.0 | Vault Folder Registry
+ * 4_vault_map.gs — ANCHOR v11.0.0 | Vault Folder Registry
  * Replaces ScriptProperties-based folder ID storage.
  */
 

@@ -1,5 +1,5 @@
 /**
- * 99_restore_properties.gs — ANCHOR v10.1.7
+ * 99_restore_properties.gs — ANCHOR v11.0.0
  * Restores non-sensitive ScriptProperties to known good state.
  * Run manually after a fresh clone or property wipe.
  *
