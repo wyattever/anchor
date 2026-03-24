@@ -544,7 +544,7 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   const infos   = results.filter(r => r.status === 'ℹ️').length;
 
   console.log('\n' + '='.repeat(60));
-  console.log('⚓ ANCHOR v11.0.0 — DIAGNOSTIC SUMMARY');
+  console.log('⚓ ANCHOR v11.0 — DIAGNOSTIC SUMMARY');
   console.log('='.repeat(60));
 
   const sections = [...new Set(results.map(r => r.section))];
@@ -566,7 +566,7 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   console.log('='.repeat(60));
 
   if (failed === 0) {
-    console.log('🚀 All checks passed — ANCHOR v11.0.0 fully operational');
+    console.log('🚀 All checks passed — ANCHOR v11.0 fully operational');
   } else {
     console.log('⚠️  ' + failed + ' check(s) failed — review above');
   }
