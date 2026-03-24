@@ -1,6 +1,7 @@
 /**
- * 4_vault_map.gs — ANCHOR v11.0.0 | Vault Folder Registry
- * Replaces ScriptProperties-based folder ID storage.
+ * 4_vault_map.gs — ANCHOR v11.0.1 | Vault Folder Registry
+ * v11.0.1: registerFolder_ now upserts — checks for existing active entry
+ *          before appending to prevent duplicate rows.
  */
 
 function getVaultMapSheetId_() {
@@ -41,7 +42,7 @@ function loadVaultMap_() {
       map[name.toString().toUpperCase()] = {
         id:     folderId.toString(),
         status: status.toString(),
-        row:    i + 1   // 1-indexed sheet row — needed for targeted deletes
+        row:    i + 1
       };
     }
   }
@@ -54,11 +55,39 @@ function getFolderIdByName_(folderName) {
   return (entry && entry.status === 'ACTIVE') ? entry.id : null;
 }
 
+/**
+ * registerFolder_
+ *
+ * Upserts a VAULT_MAP entry. If an ACTIVE entry with the same name already
+ * exists and points to the same ID, skips silently. If the name exists but
+ * with a different ID, updates the existing row. If the name does not exist,
+ * appends a new row.
+ *
+ * Prevents duplicate rows from accumulating on repeated calls.
+ */
 function registerFolder_(name, id) {
-  const ss    = SpreadsheetApp.openById(getVaultMapSheetId_());
-  const sheet = ss.getSheetByName('VAULT_MAP');
-  sheet.appendRow([name.toUpperCase(), id, new Date().toISOString(), 'ACTIVE']);
-  console.log(`[VAULT_MAP:REGISTER] ${name.toUpperCase()} → ${id}`);
+  const upperName = name.toUpperCase();
+  const map       = loadVaultMap_();
+  const ss        = SpreadsheetApp.openById(getVaultMapSheetId_());
+  const sheet     = ss.getSheetByName('VAULT_MAP');
+
+  if (map[upperName]) {
+    if (map[upperName].id === id && map[upperName].status === 'ACTIVE') {
+      console.log(`[VAULT_MAP:SKIP] ${upperName} already registered → ${id}`);
+      return;
+    }
+    // Name exists but ID or status differs — update the existing row
+    const row = map[upperName].row;
+    sheet.getRange(row, 2).setValue(id);
+    sheet.getRange(row, 3).setValue(new Date().toISOString());
+    sheet.getRange(row, 4).setValue('ACTIVE');
+    console.log(`[VAULT_MAP:UPDATE] ${upperName} → ${id} (row ${row})`);
+    return;
+  }
+
+  // Name not found — append new row
+  sheet.appendRow([upperName, id, new Date().toISOString(), 'ACTIVE']);
+  console.log(`[VAULT_MAP:REGISTER] ${upperName} → ${id}`);
 }
 
 function deleteVaultMapRow_(rowIndex) {
@@ -75,33 +104,24 @@ function deleteVaultMapRow_(rowIndex) {
  * Phase 1 — ADD: any physical folder not in the sheet gets a new row.
  * Phase 2 — DELETE: any ACTIVE sheet row whose folder ID no longer
  *            exists physically in the Vault is removed from the sheet.
- *
- * Return messages:
- *   No change:       "VAULT map up-to-date."
- *   Folder added:    "[Name] added to VAULT map."
- *   Folder deleted:  "[Name] deleted from VAULT map."
- *   Multiple events: one message per change, joined by newline.
  */
 function RECONCILE_VAULT_MAP() {
   const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
   const vault   = DriveApp.getFolderById(vaultId);
 
-  // ── Build physical folder map from Drive ───────────────────────────────────
   const physicalFolders = vault.getFolders();
-  const physicalById    = {};   // id   → name
-  const physicalByName  = {};   // NAME → id
+  const physicalById    = {};
+  const physicalByName  = {};
 
   while (physicalFolders.hasNext()) {
     const folder = physicalFolders.next();
-    physicalById[folder.getId()]              = folder.getName();
+    physicalById[folder.getId()]                   = folder.getName();
     physicalByName[folder.getName().toUpperCase()] = folder.getId();
   }
 
-  // ── Load current VAULT_MAP ─────────────────────────────────────────────────
   const map      = loadVaultMap_();
   const messages = [];
 
-  // ── Phase 1: ADD new physical folders not in sheet ────────────────────────
   for (const [upperName, folderId] of Object.entries(physicalByName)) {
     if (!map[upperName]) {
       registerFolder_(upperName, folderId);
@@ -110,10 +130,8 @@ function RECONCILE_VAULT_MAP() {
     }
   }
 
-  // ── Phase 2: DELETE sheet rows whose folder no longer exists in Vault ──────
-  // Iterate in reverse row order so row deletions don't shift subsequent indices
   const sortedEntries = Object.entries(map)
-    .sort((a, b) => b[1].row - a[1].row);   // descending by row number
+    .sort((a, b) => b[1].row - a[1].row);
 
   for (const [name, entry] of sortedEntries) {
     if (entry.status !== 'ACTIVE') continue;
@@ -137,12 +155,11 @@ function cleanupLegacyProperties() {
   const allProps  = props.getProperties();
   const whitelist = [
     'VAULT_ID', 'VAULT_MAP_SHEET_ID', 'GCP_PROJECT_ID',
-    'GCP_REGION', 'GEMINI_API_KEY', 'HEAL_TOKEN',
-    'SYNC_TOKEN', 'NETWORK_REG_ID'
+    'GCP_REGION', 'GEMINI_API_KEY', 'MODEL_ID', 'NETWORK_REG_ID'
   ];
   let count = 0;
   for (const key in allProps) {
-    if (!whitelist.includes(key) && !key.startsWith('MODEL_ID')) {
+    if (!whitelist.includes(key)) {
       props.deleteProperty(key);
       count++;
     }

@@ -1,9 +1,10 @@
 /**
- * 0_core.gs — ANCHOR v11.0.0 | API Gateway + Vertex Bridge
+ * 0_core.gs — ANCHOR v11.0.1 | API Gateway + Vertex Bridge
  * Architecture: Fail-Fast Router with Vault-Map Resolution
+ * v11.0.1: MODEL_ID read from Script Property. PROJECT_LOG removed — dead code.
  */
 const VAULT_ID        = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
-const VERTEX_MODEL    = 'gemini-2.5-flash-lite';
+const VERTEX_MODEL    = PropertiesService.getScriptProperties().getProperty('MODEL_ID') || 'gemini-2.5-flash-lite';
 const LOCK_TIMEOUT_MS = 30000;
 const GCP_PROJECT_ID  = PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID');
 const GCP_REGION      = PropertiesService.getScriptProperties().getProperty('GCP_REGION') || 'us-central1';
@@ -50,7 +51,7 @@ function doPost(e) {
         return buildResponse_(result);
       }
       case 'PING': {
-        return buildResponse_({ status: 'OK', message: 'ANCHOR v11.0.0 is alive.' });
+        return buildResponse_({ status: 'OK', message: 'ANCHOR v11.0.1 is alive.' });
       }
       default: {
         return buildResponse_({ status: 'ERROR', message: `Unknown intent: "${intent}".` }, 400);
@@ -77,7 +78,6 @@ function handleIngest_(payload) {
   let mimeType;
   let file;
 
-  // ── TXT: write raw message content directly ─────────────────────────────────
   if (format === 'txt') {
     content  = payload.content;
     if (!content) throw new Error('INGEST txt payload missing required field: content.');
@@ -85,31 +85,24 @@ function handleIngest_(payload) {
     file     = folder.createFile(name, content, mimeType);
   }
 
-  // ── CSV: generate via Vertex AI, validate, write ────────────────────────────
   else if (format === 'csv') {
     const prompt = payload.content;
     if (!prompt) throw new Error('INGEST csv payload missing required field: content (prompt).');
-
     const generated = generateStructuredContent_(prompt, 'csv');
     content  = generated;
     mimeType = MimeType.CSV;
     file     = folder.createFile(name, content, mimeType);
   }
 
-  // ── JSON: generate via Vertex AI, validate, write ───────────────────────────
   else if (format === 'json') {
     const prompt = payload.content;
     if (!prompt) throw new Error('INGEST json payload missing required field: content (prompt).');
-
     const generated = generateStructuredContent_(prompt, 'json');
-
-    // Validate JSON before writing
     try {
       JSON.parse(generated);
     } catch (jsonErr) {
       throw new Error('Vertex AI returned invalid JSON. Raw: ' + generated.substring(0, 200));
     }
-
     content  = generated;
     mimeType = 'application/json';
     const blob = Utilities.newBlob(content, mimeType, name);
@@ -117,7 +110,6 @@ function handleIngest_(payload) {
   }
 
   else {
-    // Unknown format — fall back to plain text
     content  = payload.content || '';
     mimeType = MimeType.PLAIN_TEXT;
     file     = folder.createFile(name, content, mimeType);
@@ -126,7 +118,6 @@ function handleIngest_(payload) {
   const fileUrl = 'https://drive.google.com/file/d/' + file.getId() + '/view';
   console.log(`[ANCHOR:INGEST] "${name}" (${format}) → ${file.getId()} in folder ${targetId}`);
 
-  // Log to network registry
   logMessage_({
     agent:     payload.meta && payload.meta.agent   ? payload.meta.agent   : '',
     agentId:   payload.meta && payload.meta.agentId ? payload.meta.agentId : '',
@@ -196,7 +187,6 @@ function generateStructuredContent_(userPrompt, format) {
 
   let text = raw.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-  // Strip any markdown code fences Vertex adds despite instructions
   text = text
     .replace(/^```(?:csv|json)?\n?/i, '')
     .replace(/\n?```$/,               '')
@@ -209,3 +199,56 @@ function generateStructuredContent_(userPrompt, format) {
 }
 
 // =============================================================================
+// REASON HANDLER
+// =============================================================================
+
+function processReasoning_(payload) {
+  const prompt = payload.prompt || payload.query || '';
+  if (!prompt) throw new Error('REASON payload missing required field: prompt.');
+
+  const body = {
+    contents:         [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature:     payload.temperature     || 0.7,
+      maxOutputTokens: payload.maxOutputTokens || 2048
+    }
+  };
+
+  const options = {
+    method:             'post',
+    contentType:        'application/json',
+    headers:            { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
+    payload:            JSON.stringify(body),
+    muteHttpExceptions: true
+  };
+
+  const response = UrlFetchApp.fetch(getVertexEndpoint_(), options);
+  const raw      = JSON.parse(response.getContentText());
+  if (response.getResponseCode() !== 200) {
+    throw new Error(`Vertex AI Error: ${JSON.stringify(raw.error)}`);
+  }
+
+  const responseText = raw.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  logMessage_({
+    agent:     payload.meta && payload.meta.agent   ? payload.meta.agent   : '',
+    agentId:   payload.meta && payload.meta.agentId ? payload.meta.agentId : '',
+    format:    'chat',
+    topic:     payload.topic || '',
+    message:   responseText,
+    url:       '',
+    direction: 'IN'
+  });
+
+  return { status: 'OK', response: responseText };
+}
+
+// =============================================================================
+// UTILITIES
+// =============================================================================
+
+function buildResponse_(body, httpStatus = 200) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ httpStatus, ...body }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
