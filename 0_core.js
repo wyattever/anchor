@@ -1,5 +1,5 @@
 /**
- * 0_core.gs — ANCHOR v9.2.0 | API Gateway + Vertex Bridge
+ * 0_core.gs — ANCHOR v10.2.1 | API Gateway + Vertex Bridge
  * Architecture: Fail-Fast Router with Vault-Map Resolution
  */
 const VAULT_ID        = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
@@ -45,8 +45,16 @@ function doPost(e) {
         const result = processReasoning_(payload);
         return buildResponse_(result);
       }
+      case 'READ': {
+        const result = handleRead_(payload);
+        return buildResponse_(result);
+      }
+      case 'LIST': {
+        const result = handleList_(payload);
+        return buildResponse_(result);
+      }
       case 'PING': {
-        return buildResponse_({ status: 'OK', message: 'ANCHOR v9.2.0 is alive.' });
+        return buildResponse_({ status: 'OK', message: 'ANCHOR v10.2.1 is alive.' });
       }
       default: {
         return buildResponse_({ status: 'ERROR', message: `Unknown intent: "${intent}".` }, 400);
@@ -170,7 +178,7 @@ function generateStructuredContent_(userPrompt, format) {
       parts: [{ text: userPrompt }]
     }],
     generationConfig: {
-      temperature:     0.2,    // Low temperature for structured, deterministic output
+      temperature:     0.2,
       maxOutputTokens: 4096
     }
   };

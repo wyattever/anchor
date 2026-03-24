@@ -1,6 +1,6 @@
 /**
- * 2_executor.gs — ANCHOR v9.6.2 | Action & File Execution
- * Fixed: VAULT_MAP key updated to 02-ACTIVE-PROJECTS.
+ * 2_executor.gs — ANCHOR v10.2.1 | Action & File Execution
+ * v10.2.1: Added handleRead_() and handleList_() for agent file I/O.
  */
 
 function writeProjectLog(projectName, logContent) {
@@ -61,5 +61,77 @@ function ingestToVault(data, source = 'MANUAL') {
   } catch (e) {
     console.error('❌ INGESTION ERROR: ' + e.message);
     return { status: 'error', message: e.message };
+  }
+}
+
+// =============================================================================
+// READ HANDLER
+// =============================================================================
+
+function handleRead_(payload) {
+  // Primary path — read by fileId (agent gets this back from INGEST response)
+  if (payload.fileId) {
+    try {
+      const file = DriveApp.getFileById(payload.fileId);
+      return {
+        status:  'OK',
+        name:    file.getName(),
+        fileId:  file.getId(),
+        content: file.getBlob().getDataAsString()
+      };
+    } catch (e) {
+      return { status: 'ERROR', message: 'Could not read file: ' + e.message };
+    }
+  }
+
+  // Fallback path — read by name within a folder
+  if (payload.folderId && payload.name) {
+    try {
+      const folder = DriveApp.getFolderById(payload.folderId);
+      const files  = folder.getFilesByName(payload.name);
+      if (!files.hasNext()) {
+        return { status: 'ERROR', message: 'File not found: ' + payload.name };
+      }
+      const file = files.next();
+      return {
+        status:  'OK',
+        name:    file.getName(),
+        fileId:  file.getId(),
+        content: file.getBlob().getDataAsString()
+      };
+    } catch (e) {
+      return { status: 'ERROR', message: 'Could not read file: ' + e.message };
+    }
+  }
+
+  return { status: 'ERROR', message: 'READ requires fileId or folderId+name.' };
+}
+
+// =============================================================================
+// LIST HANDLER
+// =============================================================================
+
+function handleList_(payload) {
+  if (!payload.folderId) {
+    return { status: 'ERROR', message: 'LIST requires folderId.' };
+  }
+  try {
+    const folder = DriveApp.getFolderById(payload.folderId);
+    const iter   = folder.getFiles();
+    const files  = [];
+    while (iter.hasNext()) {
+      const f = iter.next();
+      files.push({
+        name:    f.getName(),
+        fileId:  f.getId(),
+        size:    f.getSize(),
+        created: f.getDateCreated().toISOString(),
+        updated: f.getLastUpdated().toISOString()
+      });
+    }
+    files.sort((a, b) => a.name.localeCompare(b.name));
+    return { status: 'OK', count: files.length, files: files };
+  } catch (e) {
+    return { status: 'ERROR', message: 'Could not list folder: ' + e.message };
   }
 }
