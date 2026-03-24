@@ -1,186 +1,553 @@
 /**
  * tests.gs — ANCHOR v11.0.0 | Diagnostic + Discovery Test Suite
- * Consolidated from tests.js and test_discovery.js
  */
 
-function TEST_READ_LIST_FULL() {
-  const folderId = '1QnrCSWMim4xPhUoXYzyAkXcYYu7y3vLt'; // Panto
-  const vaultId  = '1PfiQ9BZ9pk2kiVJ8HUsEt4XenMy4ZkiE'; // ANCHOR-VAULT
-
+function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   const results = [];
-  const pass = (msg) => { results.push('✅ ' + msg); };
-  const fail = (msg) => { results.push('❌ ' + msg); };
+  const pass  = (section, msg) => { results.push({ section, status: '✅', msg }); };
+  const fail  = (section, msg) => { results.push({ section, status: '❌', msg }); };
+  const info  = (section, msg) => { results.push({ section, status: 'ℹ️', msg }); };
 
-  // --- READ by name ---
-  const readByName = JSON.parse(
-    doPost({ postData: { contents: JSON.stringify({
-      intent:   'READ',
-      folderId: folderId,
-      name:     'number-test.txt'
-    }) } }).getContent()
-  );
-  if (readByName.status === 'OK') {
-    pass('READ by name: ' + readByName.name + ' (' + readByName.content.length + ' chars)');
-    console.log('--- content preview ---');
-    console.log(readByName.content.substring(0, 200));
+  console.log('⚓ ANCHOR v11.0.0 — COMPREHENSIVE DIAGNOSTIC REPORT');
+  console.log(new Date().toLocaleString());
+  console.log('='.repeat(60));
 
-    // --- READ by fileId (use ID returned from name lookup) ---
-    const readById = JSON.parse(
+  // ===========================================================================
+  // SECTION 1 — SCRIPT PROPERTIES
+  // ===========================================================================
+
+  console.log('\n── SECTION 1: SCRIPT PROPERTIES ──');
+  const props = PropertiesService.getScriptProperties().getProperties();
+
+  const requiredProps = [
+    'GCP_PROJECT_ID',
+    'GCP_REGION',
+    'VAULT_ID',
+    'VAULT_MAP_SHEET_ID',
+    'MODEL_ID',
+    'NETWORK_REG_ID',
+    'GEMINI_API_KEY'
+  ];
+
+  const eliminatedProps = [
+    'GCP_PROJECT_NUMBER',
+    'VERTEX_LOCATION',
+    'MODEL_ID_DEFAULT',
+    'MODEL_ID_ADVANCED',
+    'MODEL_ID_PRO',
+    'HEAL_TOKEN',
+    'SYNC_TOKEN'
+  ];
+
+  requiredProps.forEach(key => {
+    if (props[key] && props[key].length > 0) {
+      const display = (key === 'GEMINI_API_KEY')
+        ? props[key].substring(0, 6) + '...(masked)'
+        : props[key];
+      pass('PROPS', key + ' = ' + display);
+    } else {
+      fail('PROPS', key + ' — NOT SET');
+    }
+  });
+
+  eliminatedProps.forEach(key => {
+    props[key]
+      ? fail('PROPS', key + ' — still present, should be eliminated')
+      : pass('PROPS', key + ' — correctly absent');
+  });
+
+  // ===========================================================================
+  // SECTION 2 — RUNTIME CONSTANTS
+  // ===========================================================================
+
+  console.log('\n── SECTION 2: RUNTIME CONSTANTS ──');
+
+  try {
+    info('CONSTANTS', 'VAULT_ID const = ' + VAULT_ID);
+    VAULT_ID
+      ? pass('CONSTANTS', 'VAULT_ID loaded from ScriptProperties')
+      : fail('CONSTANTS', 'VAULT_ID is null or empty');
+  } catch(e) { fail('CONSTANTS', 'VAULT_ID threw — ' + e.message); }
+
+  try {
+    info('CONSTANTS', 'VERTEX_MODEL const = ' + VERTEX_MODEL);
+    VERTEX_MODEL
+      ? pass('CONSTANTS', 'VERTEX_MODEL is set')
+      : fail('CONSTANTS', 'VERTEX_MODEL is null or empty');
+  } catch(e) { fail('CONSTANTS', 'VERTEX_MODEL threw — ' + e.message); }
+
+  try {
+    info('CONSTANTS', 'GCP_PROJECT_ID const = ' + GCP_PROJECT_ID);
+    GCP_PROJECT_ID
+      ? pass('CONSTANTS', 'GCP_PROJECT_ID is set')
+      : fail('CONSTANTS', 'GCP_PROJECT_ID is null or empty');
+  } catch(e) { fail('CONSTANTS', 'GCP_PROJECT_ID threw — ' + e.message); }
+
+  try {
+    info('CONSTANTS', 'GCP_REGION const = ' + GCP_REGION);
+    GCP_REGION
+      ? pass('CONSTANTS', 'GCP_REGION is set')
+      : fail('CONSTANTS', 'GCP_REGION is null or empty');
+  } catch(e) { fail('CONSTANTS', 'GCP_REGION threw — ' + e.message); }
+
+  try {
+    info('CONSTANTS', 'UI_VERSION = ' + UI_VERSION);
+    UI_VERSION === 'v11.0.0'
+      ? pass('CONSTANTS', 'UI_VERSION = v11.0.0 correct')
+      : fail('CONSTANTS', 'UI_VERSION = ' + UI_VERSION + ' — expected v11.0.0');
+  } catch(e) { fail('CONSTANTS', 'UI_VERSION threw — ' + e.message); }
+
+  try {
+    info('CONSTANTS', 'NETWORK_REG_ID = ' + NETWORK_REG_ID);
+    NETWORK_REG_ID
+      ? pass('CONSTANTS', 'NETWORK_REG_ID is set')
+      : fail('CONSTANTS', 'NETWORK_REG_ID is null or empty');
+  } catch(e) { fail('CONSTANTS', 'NETWORK_REG_ID threw — ' + e.message); }
+
+  // ===========================================================================
+  // SECTION 3 — FUNCTION AVAILABILITY
+  // ===========================================================================
+
+  console.log('\n── SECTION 3: FUNCTION AVAILABILITY ──');
+
+  const expectedFunctions = [
+    // 0_core.js
+    'doPost', 'handleIngest_', 'generateStructuredContent_',
+    'processReasoning_', 'buildResponse_', 'getVertexEndpoint_',
+    // web.js
+    'doGet', 'include', 'includeFromDrive_', 'getAgentConfig',
+    'processMessage', 'readFile', 'logMessage_',
+    'listFiles', 'listDirs', 'createDir',
+    // 2_executor.js
+    'writeProjectLog', 'commitSystemUpdate', 'ingestToVault',
+    'handleRead_', 'handleList_',
+    // 3_crawl.js
+    'CRAWL_VAULT', 'generateSystemPrompt', 'processReasoning',
+    // 4_vault_map.js
+    'bootstrapVaultMap', 'loadVaultMap_', 'getFolderIdByName_',
+    'registerFolder_', 'RECONCILE_VAULT_MAP', 'cleanupLegacyProperties',
+    // 1_memory.js
+    'getPhysicalMemory', 'updatePhysicalMemory',
+    // tools.js
+    'setupRegistry', 'registerClientJsFiles', 'registerCoreJsFiles',
+    'FIND_GEO_PRI_001_FILES_DATED'
+  ];
+
+  expectedFunctions.forEach(fn => {
+    typeof eval(fn) === 'function'
+      ? pass('FUNCTIONS', fn + '()')
+      : fail('FUNCTIONS', fn + '() — NOT FOUND');
+  });
+
+  // ===========================================================================
+  // SECTION 4 — VAULT ACCESS
+  // ===========================================================================
+
+  console.log('\n── SECTION 4: VAULT ACCESS ──');
+
+  try {
+    const vault = DriveApp.getFolderById(VAULT_ID);
+    pass('VAULT', 'ANCHOR-VAULT accessible — name: ' + vault.getName());
+    info('VAULT', 'Vault ID: ' + VAULT_ID);
+  } catch(e) {
+    fail('VAULT', 'ANCHOR-VAULT not accessible — ' + e.message);
+  }
+
+  try {
+    const geoPri = DriveApp.getFolderById('1k6BYtrZSGx5zgQccpiW1NNXCnIXqNRqj');
+    pass('VAULT', 'GEO-PRI-001 accessible — name: ' + geoPri.getName());
+  } catch(e) {
+    fail('VAULT', 'GEO-PRI-001 not accessible — ' + e.message);
+  }
+
+  // ===========================================================================
+  // SECTION 5 — VAULT MAP
+  // ===========================================================================
+
+  console.log('\n── SECTION 5: VAULT MAP ──');
+
+  let vaultMap = {};
+  try {
+    vaultMap = loadVaultMap_();
+    const count = Object.keys(vaultMap).length;
+    count > 0
+      ? pass('VAULT_MAP', count + ' entries loaded')
+      : fail('VAULT_MAP', 'Empty — not initialized');
+    info('VAULT_MAP', 'Keys: ' + Object.keys(vaultMap).join(', '));
+  } catch(e) {
+    fail('VAULT_MAP', 'loadVaultMap_() threw — ' + e.message);
+  }
+
+  const requiredVaultMapKeys = [
+    '01-NETWORK-REGISTRY',
+    '02-ACTIVE-PROJECTS',
+    '04-PAN-ANA-001',
+    '05-LEX-RES-777',
+    '06-SYN-ARC-555',
+    'JS-SCRIPTS',
+    'JS-COMMANDS',
+    'JS-VAULT-MAP-CLIENT',
+    'JS-MEMORY-CLIENT'
+  ];
+
+  requiredVaultMapKeys.forEach(key => {
+    const id = getFolderIdByName_(key);
+    id
+      ? pass('VAULT_MAP', key + ' → ' + id)
+      : fail('VAULT_MAP', key + ' — not found or inactive');
+  });
+
+  // ===========================================================================
+  // SECTION 6 — DRIVE JS FILES
+  // ===========================================================================
+
+  console.log('\n── SECTION 6: DRIVE JS FILES ──');
+
+  const driveJsKeys = [
+    'JS-SCRIPTS',
+    'JS-COMMANDS',
+    'JS-VAULT-MAP-CLIENT',
+    'JS-MEMORY-CLIENT'
+  ];
+
+  driveJsKeys.forEach(key => {
+    try {
+      const id = getFolderIdByName_(key);
+      if (!id) { fail('DRIVE_JS', key + ' — no VAULT_MAP entry'); return; }
+      const content = DriveApp.getFileById(id).getBlob().getDataAsString();
+      content.length > 0
+        ? pass('DRIVE_JS', key + ' readable (' + content.length + ' chars)')
+        : fail('DRIVE_JS', key + ' — file is empty');
+    } catch(e) {
+      fail('DRIVE_JS', key + ' — ' + e.message);
+    }
+  });
+
+  try {
+    const result = includeFromDrive_('JS-SCRIPTS');
+    result.startsWith('<script>') && result.endsWith('</script>')
+      ? pass('DRIVE_JS', 'includeFromDrive_(JS-SCRIPTS) wraps correctly')
+      : fail('DRIVE_JS', 'includeFromDrive_(JS-SCRIPTS) — bad wrapper output');
+  } catch(e) {
+    fail('DRIVE_JS', 'includeFromDrive_ threw — ' + e.message);
+  }
+
+  try {
+    const result = includeFromDrive_('JS-DOES-NOT-EXIST');
+    result.includes('console.error')
+      ? pass('DRIVE_JS', 'includeFromDrive_ missing key degrades gracefully')
+      : fail('DRIVE_JS', 'includeFromDrive_ missing key — did not degrade gracefully');
+  } catch(e) {
+    fail('DRIVE_JS', 'includeFromDrive_ missing key threw instead of degrading — ' + e.message);
+  }
+
+  // ===========================================================================
+  // SECTION 7 — AGENT WIRING
+  // ===========================================================================
+
+  console.log('\n── SECTION 7: AGENT WIRING ──');
+
+  try {
+    const agents = getAgentConfig();
+    agents.forEach(a => {
+      a.id !== 'MISSING_ID'
+        ? pass('AGENTS', a.name + ' → ' + a.id)
+        : fail('AGENTS', a.name + ' — MISSING_ID');
+    });
+  } catch(e) {
+    fail('AGENTS', 'getAgentConfig() threw — ' + e.message);
+  }
+
+  // ===========================================================================
+  // SECTION 8 — NETWORK REGISTRY
+  // ===========================================================================
+
+  console.log('\n── SECTION 8: NETWORK REGISTRY ──');
+
+  try {
+    const ss = SpreadsheetApp.openById(NETWORK_REG_ID);
+    pass('REGISTRY', 'Network Registry accessible — ' + ss.getName());
+    const sheets = ss.getSheets().map(s => s.getName());
+    info('REGISTRY', 'Sheets: ' + sheets.join(', '));
+    sheets.includes('Primary')
+      ? pass('REGISTRY', 'Primary sheet exists')
+      : fail('REGISTRY', 'Primary sheet missing');
+    sheets.includes('REGISTRY')
+      ? pass('REGISTRY', 'REGISTRY sheet exists')
+      : fail('REGISTRY', 'REGISTRY sheet missing — run setupRegistry()');
+  } catch(e) {
+    fail('REGISTRY', 'Network Registry not accessible — ' + e.message);
+  }
+
+  // ===========================================================================
+  // SECTION 9 — MEMORY
+  // ===========================================================================
+
+  console.log('\n── SECTION 9: AGENT MEMORY ──');
+
+  try {
+    const memory = getPhysicalMemory();
+    const keys = Object.keys(memory);
+    keys.length > 0
+      ? pass('MEMORY', 'agent_memory.json readable — ' + keys.length + ' keys')
+      : fail('MEMORY', 'agent_memory.json empty or missing');
+    info('MEMORY', 'Memory keys: ' + keys.join(', '));
+    if (memory.anchor_version) {
+      memory.anchor_version === 'v11.0.0'
+        ? pass('MEMORY', 'anchor_version = v11.0.0')
+        : fail('MEMORY', 'anchor_version = ' + memory.anchor_version + ' — update to v11.0.0');
+    } else {
+      fail('MEMORY', 'anchor_version key missing from agent_memory.json');
+    }
+  } catch(e) {
+    fail('MEMORY', 'getPhysicalMemory() threw — ' + e.message);
+  }
+
+  // ===========================================================================
+  // SECTION 10 — DOPOST ROUTING
+  // ===========================================================================
+
+  console.log('\n── SECTION 10: DOPOST ROUTING ──');
+
+  try {
+    const res = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({ intent: 'PING' }) } }).getContent()
+    );
+    res.status === 'OK' && res.message.includes('v11.0.0')
+      ? pass('ROUTING', 'PING → v11.0.0 confirmed')
+      : fail('ROUTING', 'PING returned unexpected: ' + JSON.stringify(res));
+  } catch(e) { fail('ROUTING', 'PING threw — ' + e.message); }
+
+  try {
+    const res = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({ intent: 'BOGUS' }) } }).getContent()
+    );
+    res.status === 'ERROR'
+      ? pass('ROUTING', 'Unknown intent returns ERROR correctly')
+      : fail('ROUTING', 'Unknown intent did not return ERROR — ' + JSON.stringify(res));
+  } catch(e) { fail('ROUTING', 'Unknown intent threw — ' + e.message); }
+
+  try {
+    const res = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({}) } }).getContent()
+    );
+    res.status === 'ERROR'
+      ? pass('ROUTING', 'Missing intent returns ERROR correctly')
+      : fail('ROUTING', 'Missing intent did not return ERROR');
+  } catch(e) { fail('ROUTING', 'Missing intent threw — ' + e.message); }
+
+  try {
+    const res = JSON.parse(
+      doPost({ postData: { contents: 'not json' } }).getContent()
+    );
+    res.status === 'ERROR'
+      ? pass('ROUTING', 'Invalid JSON returns ERROR correctly')
+      : fail('ROUTING', 'Invalid JSON did not return ERROR');
+  } catch(e) { fail('ROUTING', 'Invalid JSON threw — ' + e.message); }
+
+  // ===========================================================================
+  // SECTION 11 — INGEST
+  // ===========================================================================
+
+  console.log('\n── SECTION 11: INGEST ──');
+
+  let ingestFileId = null;
+
+  try {
+    const res = JSON.parse(
       doPost({ postData: { contents: JSON.stringify({
-        intent: 'READ',
-        fileId: readByName.fileId
+        intent:   'INGEST',
+        format:   'txt',
+        folderId: VAULT_ID,
+        name:     'DIAG_TEST_v11.txt',
+        content:  'ANCHOR v11.0.0 diagnostic test — safe to delete',
+        meta:     { agent: 'DIAGNOSTIC', agentId: 'SYS-DIAG-000', format: 'txt' }
       }) } }).getContent()
     );
-    readById.status === 'OK'
-      ? pass('READ by fileId: ' + readById.fileId + ' — content matches: ' + (readById.content === readByName.content))
-      : fail('READ by fileId: ' + readById.message);
+    if (res.status === 'OK') {
+      ingestFileId = res.fileId;
+      pass('INGEST', 'TXT ingest OK → ' + res.fileId);
+    } else {
+      fail('INGEST', 'TXT ingest ERROR — ' + res.message);
+    }
+  } catch(e) { fail('INGEST', 'TXT ingest threw — ' + e.message); }
 
-  } else {
-    fail('READ by name: ' + readByName.message);
-    fail('READ by fileId: skipped — no fileId available');
-  }
-
-  // --- LIST vault root ---
-  const listVault = JSON.parse(
-    doPost({ postData: { contents: JSON.stringify({
-      intent:   'LIST',
-      folderId: vaultId
-    }) } }).getContent()
-  );
-  if (listVault.status === 'OK') {
-    pass('LIST vault root: ' + listVault.count + ' files');
-    listVault.files.forEach(f => console.log('  ' + f.name + ' | ' + f.fileId));
-  } else {
-    fail('LIST vault root: ' + listVault.message);
-  }
-
-  // --- LIST Panto folder ---
-  const listPanto = JSON.parse(
-    doPost({ postData: { contents: JSON.stringify({
-      intent:   'LIST',
-      folderId: folderId
-    }) } }).getContent()
-  );
-  if (listPanto.status === 'OK') {
-    pass('LIST Panto folder: ' + listPanto.count + ' files');
-    listPanto.files.forEach(f => console.log('  ' + f.name + ' | ' + f.fileId));
-  } else {
-    fail('LIST Panto folder: ' + listPanto.message);
-  }
-
-  // --- Report ---
-  const passed = results.filter(r => r.startsWith('✅')).length;
-  const failed = results.filter(r => r.startsWith('❌')).length;
-  console.log('\n⚓ READ/LIST FULL TEST REPORT');
-  console.log('='.repeat(40));
-  results.forEach(r => console.log(r));
-  console.log('='.repeat(40));
-  console.log('PASSED: ' + passed + ' / FAILED: ' + failed);
-}
-
-function FIX_VAULT_MAP_JS() {
-  registerFolder_('JS-SCRIPTS',  '1WW1YrA_XxjCAong24PFV9nJGtYRw3-W9');
-  registerFolder_('JS-COMMANDS', '1SBs242jHt9HI9ACEoKssboLGZO-_8wDy');
-  console.log('Done. Run CHECK_DRIVE_JS() to verify.');
-}
-
-function CHECK_DRIVE_JS() {
-  console.log(includeFromDrive_('JS-SCRIPTS').substring(0, 100));
-  console.log(includeFromDrive_('JS-COMMANDS').substring(0, 100));
-}
-
-function QUICK_CHECK() {
-  console.log(typeof getFolderIdByName_);
-  console.log(typeof handleRead_);
-  console.log(typeof handleList_);
-  console.log(getAgentConfig());
-}
-
-function TEST_READ_LIST() {
-  const results = [];
-  const pass = (msg) => { results.push('✅ ' + msg); };
-  const fail = (msg) => { results.push('❌ ' + msg); };
-
-  // --- LIST test ---
-  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
-  const listRes = JSON.parse(
-    doPost({ postData: { contents: JSON.stringify({
-      intent:   'LIST',
-      folderId: vaultId
-    }) } }).getContent()
-  );
-  listRes.status === 'OK'
-    ? pass('LIST: returned ' + listRes.count + ' files')
-    : fail('LIST: ' + listRes.message);
-
-  // --- INGEST then READ by fileId ---
-  const ingestRes = JSON.parse(
-    doPost({ postData: { contents: JSON.stringify({
-      intent:   'INGEST',
-      format:   'txt',
-      folderId: vaultId,
-      name:     'READ_TEST.txt',
-      content:  'read test payload — safe to delete',
-      meta:     { agent: 'TEST', agentId: 'SYS-TEST-000', format: 'txt' }
-    }) } }).getContent()
-  );
-  ingestRes.status === 'OK'
-    ? pass('INGEST for READ test: ' + ingestRes.fileId)
-    : fail('INGEST for READ test: ' + ingestRes.message);
-
-  if (ingestRes.fileId) {
-    const readRes = JSON.parse(
+  try {
+    const res = JSON.parse(
       doPost({ postData: { contents: JSON.stringify({
-        intent: 'READ',
-        fileId: ingestRes.fileId
+        intent: 'INGEST', format: 'txt', folderId: VAULT_ID
       }) } }).getContent()
     );
-    readRes.status === 'OK' && readRes.content === 'read test payload — safe to delete'
-      ? pass('READ by fileId: content verified')
-      : fail('READ by fileId: ' + (readRes.message || 'content mismatch'));
+    res.status === 'ERROR'
+      ? pass('INGEST', 'TXT missing content returns ERROR correctly')
+      : fail('INGEST', 'TXT missing content did not return ERROR');
+  } catch(e) { fail('INGEST', 'TXT missing content threw — ' + e.message); }
+
+  // ===========================================================================
+  // SECTION 12 — READ
+  // ===========================================================================
+
+  console.log('\n── SECTION 12: READ ──');
+
+  if (ingestFileId) {
+    try {
+      const res = JSON.parse(
+        doPost({ postData: { contents: JSON.stringify({
+          intent: 'READ',
+          fileId: ingestFileId
+        }) } }).getContent()
+      );
+      res.status === 'OK' && res.content === 'ANCHOR v11.0.0 diagnostic test — safe to delete'
+        ? pass('READ', 'READ by fileId — content verified')
+        : fail('READ', 'READ by fileId — content mismatch or error: ' + JSON.stringify(res));
+    } catch(e) { fail('READ', 'READ by fileId threw — ' + e.message); }
+  } else {
+    fail('READ', 'READ by fileId — skipped, no fileId from INGEST');
   }
 
-  // --- READ by folderId + name ---
-  const readByNameRes = JSON.parse(
-    doPost({ postData: { contents: JSON.stringify({
-      intent:    'READ',
-      folderId:  vaultId,
-      name:      'READ_TEST.txt'
-    }) } }).getContent()
-  );
-  readByNameRes.status === 'OK'
-    ? pass('READ by name: ' + readByNameRes.name)
-    : fail('READ by name: ' + readByNameRes.message);
+  try {
+    const res = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({
+        intent:   'READ',
+        folderId: VAULT_ID,
+        name:     'DIAG_TEST_v11.txt'
+      }) } }).getContent()
+    );
+    res.status === 'OK'
+      ? pass('READ', 'READ by name — ' + res.name + ' (' + res.content.length + ' chars)')
+      : fail('READ', 'READ by name — ' + res.message);
+  } catch(e) { fail('READ', 'READ by name threw — ' + e.message); }
 
-  // --- READ with missing fileId ---
-  const badReadRes = JSON.parse(
-    doPost({ postData: { contents: JSON.stringify({
-      intent: 'READ'
-    }) } }).getContent()
-  );
-  badReadRes.status === 'ERROR'
-    ? pass('READ with no params: correct ERROR response')
-    : fail('READ with no params: should have returned ERROR');
+  try {
+    const res = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({ intent: 'READ' }) } }).getContent()
+    );
+    res.status === 'ERROR'
+      ? pass('READ', 'READ with no params returns ERROR correctly')
+      : fail('READ', 'READ with no params did not return ERROR');
+  } catch(e) { fail('READ', 'READ no params threw — ' + e.message); }
 
-  // --- Report ---
-  const passed = results.filter(r => r.startsWith('✅')).length;
-  const failed = results.filter(r => r.startsWith('❌')).length;
-  console.log('\n⚓ READ/LIST TEST REPORT');
-  console.log('='.repeat(40));
-  results.forEach(r => console.log(r));
-  console.log('='.repeat(40));
-  console.log('PASSED: ' + passed + ' / FAILED: ' + failed);
+  try {
+    const res = readFile({ fileId: ingestFileId });
+    res.status === 'OK'
+      ? pass('READ', 'readFile() wrapper OK')
+      : fail('READ', 'readFile() wrapper ERROR — ' + res.message);
+  } catch(e) { fail('READ', 'readFile() wrapper threw — ' + e.message); }
+
+  // ===========================================================================
+  // SECTION 13 — LIST
+  // ===========================================================================
+
+  console.log('\n── SECTION 13: LIST ──');
+
+  try {
+    const res = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({
+        intent:   'LIST',
+        folderId: VAULT_ID
+      }) } }).getContent()
+    );
+    if (res.status === 'OK') {
+      pass('LIST', 'LIST vault root — ' + res.count + ' files');
+      res.files.forEach(f => info('LIST', '  vault: ' + f.name + ' | ' + f.fileId));
+    } else {
+      fail('LIST', 'LIST vault root — ' + res.message);
+    }
+  } catch(e) { fail('LIST', 'LIST vault root threw — ' + e.message); }
+
+  try {
+    const pantoId = getFolderIdByName_('04-PAN-ANA-001');
+    if (!pantoId) { fail('LIST', 'LIST Panto — no folderId'); }
+    else {
+      const res = JSON.parse(
+        doPost({ postData: { contents: JSON.stringify({
+          intent:   'LIST',
+          folderId: pantoId
+        }) } }).getContent()
+      );
+      res.status === 'OK'
+        ? pass('LIST', 'LIST Panto folder — ' + res.count + ' files')
+        : fail('LIST', 'LIST Panto folder — ' + res.message);
+    }
+  } catch(e) { fail('LIST', 'LIST Panto threw — ' + e.message); }
+
+  try {
+    const res = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({ intent: 'LIST' }) } }).getContent()
+    );
+    res.status === 'ERROR'
+      ? pass('LIST', 'LIST with no folderId returns ERROR correctly')
+      : fail('LIST', 'LIST with no folderId did not return ERROR');
+  } catch(e) { fail('LIST', 'LIST no folderId threw — ' + e.message); }
+
+  // ===========================================================================
+  // SECTION 14 — VERTEX AI
+  // ===========================================================================
+
+  console.log('\n── SECTION 14: VERTEX AI ──');
+
+  try {
+    info('VERTEX', 'Endpoint: ' + getVertexEndpoint_());
+    const res = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({
+        intent: 'REASON',
+        prompt: 'Reply with exactly the words: ANCHOR VERTEX OK',
+        meta:   { agent: 'DIAGNOSTIC', agentId: 'SYS-DIAG-000' }
+      }) } }).getContent()
+    );
+    if (res.status === 'OK') {
+      pass('VERTEX', 'REASON intent OK — model responded');
+      info('VERTEX', 'Response: ' + res.response.substring(0, 100));
+    } else {
+      fail('VERTEX', 'REASON intent ERROR — ' + res.message);
+    }
+  } catch(e) { fail('VERTEX', 'REASON threw — ' + e.message); }
+
+  // ===========================================================================
+  // FINAL REPORT
+  // ===========================================================================
+
+  const passed  = results.filter(r => r.status === '✅').length;
+  const failed  = results.filter(r => r.status === '❌').length;
+  const infos   = results.filter(r => r.status === 'ℹ️').length;
+
+  console.log('\n' + '='.repeat(60));
+  console.log('⚓ ANCHOR v11.0.0 — DIAGNOSTIC SUMMARY');
+  console.log('='.repeat(60));
+
+  const sections = [...new Set(results.map(r => r.section))];
+  sections.forEach(section => {
+    const sectionResults = results.filter(r => r.section === section);
+    const sectionPassed  = sectionResults.filter(r => r.status === '✅').length;
+    const sectionFailed  = sectionResults.filter(r => r.status === '❌').length;
+    console.log('\n[' + section + '] ' + sectionPassed + ' passed, ' + sectionFailed + ' failed');
+    sectionResults.forEach(r => {
+      if (r.status !== 'ℹ️') console.log('  ' + r.status + ' ' + r.msg);
+    });
+    sectionResults
+      .filter(r => r.status === 'ℹ️')
+      .forEach(r => console.log('  ' + r.status + ' ' + r.msg));
+  });
+
+  console.log('\n' + '='.repeat(60));
+  console.log('TOTAL — PASSED: ' + passed + ' | FAILED: ' + failed + ' | INFO: ' + infos);
+  console.log('='.repeat(60));
+
+  if (failed === 0) {
+    console.log('🚀 All checks passed — ANCHOR v11.0.0 fully operational');
+  } else {
+    console.log('⚠️  ' + failed + ' check(s) failed — review above');
+  }
 }
 
+// =============================================================================
+// DISCOVERY UTILITIES
+// =============================================================================
 
 function REGISTER_AND_CLEAN_JS_FILES() {
   registerFolder_('JS-SCRIPTS',   '1WW1YrA_XxjCAong24PFV9nJGtYRw3-W9');
   registerFolder_('JS-COMMANDS',  '1SBs242jHt9HI9ACEoKssboLGZO-_8wDy');
   console.log('JS-SCRIPTS and JS-COMMANDS registered.');
-
-  DriveApp.getFileById('1Qyr0U14jHxY5Z9G_E08IvPP08MyNbolQ').setTrashed(true);
-  DriveApp.getFileById('1YWDHnilGYTbGLWGu3w0c99LZgJjiLSuC').setTrashed(true);
-  console.log('Older duplicates trashed.');
 }
 
 function FIND_GEO_PRI_001_FILES_DATED() {
@@ -201,84 +568,6 @@ function FIND_GEO_PRI_001_FILES() {
     const f = files.next();
     console.log(f.getName() + ' → ' + f.getId());
   }
-}
-
-
-
-// =============================================================================
-// ANCHOR FULL DIAGNOSTICS
-// =============================================================================
-
-function RUN_ANCHOR_DIAGNOSTICS() {
-  const LOG_HEADER = '⚓ ANCHOR DIAGNOSTIC REPORT\n' +
-                     new Date().toLocaleString() + '\n' +
-                     '='.repeat(40);
-  console.log(LOG_HEADER);
-
-  const results = {
-    routing:      false,
-    vault_access: false,
-    ingest_io:    false,
-    vertex:       false,
-    vault_map:    false
-  };
-
-  try {
-    const pingRes = JSON.parse(
-      doPost({ postData: { contents: JSON.stringify({ intent: 'PING' }) } }).getContent()
-    );
-    if (pingRes.status === 'OK') {
-      console.log('✅ PING: Success');
-      results.routing = true;
-    }
-
-    console.log('Verifying Vault Access (ID: ' + VAULT_ID + ')...');
-    try {
-      const folder = DriveApp.getFolderById(VAULT_ID);
-      console.log('✅ VAULT ACCESS: ' + folder.getName());
-      results.vault_access = true;
-    } catch (fErr) {
-      console.error('❌ VAULT ACCESS FAILED: ' + fErr.message);
-    }
-
-    const map = loadVaultMap_();
-    if (Object.keys(map).length > 0) {
-      console.log('✅ VAULT_MAP: ' + Object.keys(map).length + ' entries loaded');
-      results.vault_map = true;
-    } else {
-      console.error('❌ VAULT_MAP: Empty or not initialized');
-    }
-
-    const ingestPayload = {
-      intent:   'INGEST',
-      format:   'txt',
-      folderId: VAULT_ID,
-      name:     'DIAGNOSTIC_TEST.txt',
-      content:  'ANCHOR diagnostic test file — safe to delete.',
-      meta:     { agent: 'DIAGNOSTIC', agentId: 'SYS-DIA-000', format: 'txt' }
-    };
-    const ingestRes = JSON.parse(
-      doPost({ postData: { contents: JSON.stringify(ingestPayload) } }).getContent()
-    );
-    if (ingestRes.status === 'OK') {
-      console.log('✅ INGEST I/O: Success → ' + ingestRes.fileId);
-      results.ingest_io = true;
-    }
-
-  } catch (e) {
-    console.error('❌ DIAGNOSTICS ERROR: ' + e.message);
-  }
-
-  const passed = Object.values(results).filter(Boolean).length;
-  const total  = Object.keys(results).length;
-  console.log('='.repeat(40));
-  console.log('PASSED: ' + passed + ' / ' + total);
-  if (passed === total) {
-    console.log('🚀 All diagnostics passed');
-  } else {
-    console.log('⚠️  Some checks failed — review above');
-  }
-  return results;
 }
 
 // =============================================================================
@@ -326,235 +615,4 @@ function TEST_DRIVE_JS_FILES() {
       console.log('❌ ' + key + ': ' + e.message);
     }
   });
-}
-
-// =============================================================================
-// STAGE 2 MIGRATION VALIDATION
-// =============================================================================
-
-function VALIDATE_STAGE_2() {
-  const results = [];
-  const pass = (msg) => { results.push('✅ ' + msg); };
-  const fail = (msg) => { results.push('❌ ' + msg); };
-
-  const deadFiles = ['Code', '94_sync_props', '5_ingest', '4_brain'];
-  deadFiles.forEach(name => {
-    try {
-      HtmlService.createHtmlOutputFromFile(name);
-      fail('Dead file still present: ' + name);
-    } catch(e) {
-      pass('Dead file gone: ' + name);
-    }
-  });
-
-  try {
-    const id = getFolderIdByName_('02-ACTIVE-PROJECTS');
-    id
-      ? pass('2_executor: 02-ACTIVE-PROJECTS key resolves → ' + id)
-      : fail('2_executor: 02-ACTIVE-PROJECTS key returned null');
-  } catch(e) {
-    fail('2_executor: getFolderIdByName_ threw — ' + e.message);
-  }
-
-  try {
-    const netId = getFolderIdByName_('01-NETWORK-REGISTRY');
-    netId
-      ? pass('3_crawl: 01-NETWORK-REGISTRY key resolves → ' + netId)
-      : fail('3_crawl: 01-NETWORK-REGISTRY key returned null');
-  } catch(e) {
-    fail('3_crawl: 01-NETWORK-REGISTRY threw — ' + e.message);
-  }
-
-  try {
-    const actId = getFolderIdByName_('02-ACTIVE-PROJECTS');
-    actId
-      ? pass('3_crawl: 02-ACTIVE-PROJECTS key resolves → ' + actId)
-      : fail('3_crawl: 02-ACTIVE-PROJECTS key returned null');
-  } catch(e) {
-    fail('3_crawl: 02-ACTIVE-PROJECTS threw — ' + e.message);
-  }
-
-  typeof processReasoning_ === 'function'
-    ? pass('3_crawl: processReasoning_() found in scope')
-    : fail('3_crawl: processReasoning_() not found — check 0_core.js');
-
-  const props = PropertiesService.getScriptProperties().getProperties();
-  ['GEMINI_API_KEY', 'HEAL_TOKEN', 'SYNC_TOKEN'].forEach(key => {
-    (props[key] || '').length > 0
-      ? pass('99_restore: ' + key + ' is set')
-      : fail('99_restore: ' + key + ' NOT set — set manually in Script Properties UI');
-  });
-
-  try {
-    const folder = DriveApp.getFolderById(
-      PropertiesService.getScriptProperties().getProperty('VAULT_ID')
-    );
-    pass('VAULT: accessible → ' + folder.getName());
-  } catch(e) {
-    fail('VAULT: not accessible — ' + e.message);
-  }
-
-  const passed = results.filter(r => r.startsWith('✅')).length;
-  const failed = results.filter(r => r.startsWith('❌')).length;
-  console.log('\n⚓ STAGE 2 VALIDATION REPORT');
-  console.log('='.repeat(40));
-  results.forEach(r => console.log(r));
-  console.log('='.repeat(40));
-  console.log('PASSED: ' + passed + ' / FAILED: ' + failed);
-  failed === 0
-    ? console.log('🚀 Stage 2 clean — ready for Stage 3')
-    : console.log('⚠️  Fix failures before proceeding to Stage 3');
-}
-
-// =============================================================================
-// STAGE 4 MIGRATION VALIDATION — run once, then remove
-// =============================================================================
-
-function VALIDATE_STAGE_4() {
-  const results = [];
-  const pass = (msg) => { results.push('✅ ' + msg); };
-  const fail = (msg) => { results.push('❌ ' + msg); };
-
-  // --- WebApp.js must be gone ---
-  try {
-    HtmlService.createHtmlOutputFromFile('WebApp');
-    fail('WebApp.js still present in project');
-  } catch(e) {
-    pass('WebApp.js removed from project');
-  }
-
-  // --- web.js entry points exist ---
-  try {
-    if (typeof doGet === 'function') {
-      pass('web.js: doGet() found in scope');
-    } else {
-      fail('web.js: doGet() not found');
-    }
-  } catch(e) {
-    fail('web.js: doGet() check threw — ' + e.message);
-  }
-
-  try {
-    if (typeof includeFromDrive_ === 'function') {
-      pass('web.js: includeFromDrive_() found in scope');
-    } else {
-      fail('web.js: includeFromDrive_() not found');
-    }
-  } catch(e) {
-    fail('web.js: includeFromDrive_() check threw — ' + e.message);
-  }
-
-  try {
-    if (typeof processMessage === 'function') {
-      pass('web.js: processMessage() found in scope');
-    } else {
-      fail('web.js: processMessage() not found');
-    }
-  } catch(e) {
-    fail('web.js: processMessage() check threw — ' + e.message);
-  }
-
-  // --- tools.js one-off functions exist ---
-  try {
-    if (typeof setupRegistry === 'function') {
-      pass('tools.js: setupRegistry() found in scope');
-    } else {
-      fail('tools.js: setupRegistry() not found');
-    }
-  } catch(e) {
-    fail('tools.js: setupRegistry() check threw — ' + e.message);
-  }
-
-  try {
-    if (typeof registerClientJsFiles === 'function') {
-      pass('tools.js: registerClientJsFiles() found in scope');
-    } else {
-      fail('tools.js: registerClientJsFiles() not found');
-    }
-  } catch(e) {
-    fail('tools.js: registerClientJsFiles() check threw — ' + e.message);
-  }
-
-  // --- All four Drive JS keys readable ---
-  ['JS-COMMANDS', 'JS-SCRIPTS', 'JS-VAULT-MAP-CLIENT', 'JS-MEMORY-CLIENT'].forEach(key => {
-    try {
-      const id = getFolderIdByName_(key);
-      if (!id) { fail('Drive JS: ' + key + ' — no VAULT_MAP entry'); return; }
-      const content = DriveApp.getFileById(id).getBlob().getDataAsString();
-      content.length > 0
-        ? pass('Drive JS: ' + key + ' readable (' + content.length + ' chars)')
-        : fail('Drive JS: ' + key + ' — file is empty');
-    } catch(e) {
-      fail('Drive JS: ' + key + ' — ' + e.message);
-    }
-  });
-
-  // --- includeFromDrive_ returns script tag for JS-COMMANDS ---
-  try {
-    const result = includeFromDrive_('JS-COMMANDS');
-    result.includes('<script>') && result.includes('</script>')
-      ? pass('includeFromDrive_: JS-COMMANDS wraps correctly in script tags')
-      : fail('includeFromDrive_: JS-COMMANDS output missing script tags');
-  } catch(e) {
-    fail('includeFromDrive_: threw — ' + e.message);
-  }
-
-  // --- includeFromDrive_ returns error script tag for missing key ---
-  try {
-    const result = includeFromDrive_('JS-DOES-NOT-EXIST');
-    result.includes('console.error')
-      ? pass('includeFromDrive_: missing key returns error script tag gracefully')
-      : fail('includeFromDrive_: missing key did not return error script tag');
-  } catch(e) {
-    fail('includeFromDrive_: missing key threw instead of degrading gracefully — ' + e.message);
-  }
-
-  // --- Agent config resolves all three agents ---
-  try {
-    const agents = getAgentConfig();
-    const missing = agents.filter(a => a.id === 'MISSING_ID');
-    missing.length === 0
-      ? pass('getAgentConfig: all 3 agents resolve (' + agents.map(a => a.name).join(', ') + ')')
-      : fail('getAgentConfig: missing IDs for — ' + missing.map(a => a.name).join(', '));
-  } catch(e) {
-    fail('getAgentConfig: threw — ' + e.message);
-  }
-
-  // --- PING routing still clean ---
-  try {
-    const pingRes = JSON.parse(
-      doPost({ postData: { contents: JSON.stringify({ intent: 'PING' }) } }).getContent()
-    );
-    pingRes.status === 'OK'
-      ? pass('doPost: PING routing OK')
-      : fail('doPost: PING returned unexpected status — ' + JSON.stringify(pingRes));
-  } catch(e) {
-    fail('doPost: PING threw — ' + e.message);
-  }
-
-  // --- Index.html contains includeFromDrive_ calls ---
-  try {
-    const html = HtmlService.createHtmlOutputFromFile('Index').getContent();
-    html.includes('includeFromDrive_') || html.includes('includeFromDrive_') || html.includes('includeFromDrive_')
-      ? pass('Index.html: includeFromDrive_() calls present (encoded)')
-      : fail('Index.html: includeFromDrive_() calls not found');
-    (html.includes('JS-COMMANDS') || html.includes('JS-COMMANDS')) &&
-    (html.includes('JS-SCRIPTS')  || html.includes('JS-SCRIPTS'))
-      ? pass('Index.html: JS-COMMANDS and JS-SCRIPTS referenced (encoded)')
-      : fail('Index.html: JS-COMMANDS or JS-SCRIPTS reference missing');
-  } catch(e) {
-    fail('Index.html: check threw — ' + e.message);
-  }
-
-  // --- Report ---
-  const passed = results.filter(r => r.startsWith('✅')).length;
-  const failed = results.filter(r => r.startsWith('❌')).length;
-  console.log('\n⚓ STAGE 4 VALIDATION REPORT');
-  console.log('='.repeat(40));
-  results.forEach(r => console.log(r));
-  console.log('='.repeat(40));
-  console.log('PASSED: ' + passed + ' / FAILED: ' + failed);
-  failed === 0
-    ? console.log('🚀 Stage 4 clean — migration complete')
-    : console.log('⚠️  Fix failures before deploying');
 }

@@ -37,10 +37,6 @@ function doPost(e) {
         const result = handleIngest_(payload);
         return buildResponse_({ status: result.status, fileId: result.fileId, name: result.name, url: result.url });
       }
-      case 'PROJECT_LOG': {
-        const result = handleProjectLog_(payload);
-        return buildResponse_(result);
-      }
       case 'REASON': {
         const result = processReasoning_(payload);
         return buildResponse_(result);
@@ -213,77 +209,3 @@ function generateStructuredContent_(userPrompt, format) {
 }
 
 // =============================================================================
-// PROJECT LOG HANDLER
-// =============================================================================
-
-function handleProjectLog_(payload) {
-  const activeProjectsId = getFolderIdByName_('02-ACTIVE-PROJECTS');
-  if (!activeProjectsId) throw new Error('VAULT_MAP entry for 02-ACTIVE-PROJECTS not found.');
-
-  const ss    = SpreadsheetApp.openById(activeProjectsId);
-  const sheet = ss.getSheets()[0];
-  const row   = [
-    new Date().toISOString(),
-    payload.projectId || '',
-    payload.event     || '',
-    JSON.stringify(payload.meta || {})
-  ];
-  sheet.appendRow(row);
-  return { status: 'OK', rowIndex: sheet.getLastRow() };
-}
-
-// =============================================================================
-// REASON HANDLER
-// =============================================================================
-
-function processReasoning_(payload) {
-  const prompt = payload.prompt || payload.query || '';
-  if (!prompt) throw new Error('REASON payload missing required field: prompt.');
-
-  const body = {
-    contents:         [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature:     payload.temperature     || 0.7,
-      maxOutputTokens: payload.maxOutputTokens || 2048
-    }
-  };
-
-  const options = {
-    method:             'post',
-    contentType:        'application/json',
-    headers:            { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
-    payload:            JSON.stringify(body),
-    muteHttpExceptions: true
-  };
-
-  const response = UrlFetchApp.fetch(getVertexEndpoint_(), options);
-  const raw      = JSON.parse(response.getContentText());
-  if (response.getResponseCode() !== 200) {
-    throw new Error(`Vertex AI Error: ${JSON.stringify(raw.error)}`);
-  }
-
-  const responseText = raw.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  // Log agent reply to registry sheets
-  logMessage_({
-    agent:     payload.meta && payload.meta.agent   ? payload.meta.agent   : '',
-    agentId:   payload.meta && payload.meta.agentId ? payload.meta.agentId : '',
-    format:    'chat',
-    topic:     payload.topic || '',
-    message:   responseText,
-    url:       '',
-    direction: 'IN'
-  });
-
-  return { status: 'OK', response: responseText };
-}
-
-// =============================================================================
-// UTILITIES
-// =============================================================================
-
-function buildResponse_(body, httpStatus = 200) {
-  return ContentService
-    .createTextOutput(JSON.stringify({ httpStatus, ...body }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
