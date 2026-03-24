@@ -2,6 +2,39 @@
  * tests.gs — ANCHOR v10 | Full-Spectrum Diagnostic Suite
  * Validates: Routing, Vault Access, Vertex AI, and Concurrency.
  */
+function debugJsFiles() {
+  const keys = ['JS-COMMANDS', 'JS-SCRIPTS'];
+  keys.forEach(key => {
+    const fileId = getFolderIdByName_(key);
+    console.log(key + ' → fileId: ' + fileId);
+    if (fileId) {
+      try {
+        const content = DriveApp.getFileById(fileId).getBlob().getDataAsString();
+        console.log(key + ' → content length: ' + content.length);
+        console.log(key + ' → first 100 chars: ' + content.substring(0, 100));
+      } catch (err) {
+        console.error(key + ' → READ ERROR: ' + err.message);
+      }
+    }
+  });
+}
+
+function updateJsFileIds() {
+  const ss    = SpreadsheetApp.openById(getVaultMapSheetId_());
+  const sheet = ss.getSheetByName('VAULT_MAP');
+  const data  = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'JS-COMMANDS') {
+      sheet.getRange(i + 1, 2).setValue('1SBs242jHt9HI9ACEoKssboLGZO-_8wDy');
+      console.log('JS-COMMANDS updated.');
+    }
+    if (data[i][0] === 'JS-SCRIPTS') {
+      sheet.getRange(i + 1, 2).setValue('1WW1YrA_XxjCAong24PFV9nJGtYRw3-W9');
+      console.log('JS-SCRIPTS updated.');
+    }
+  }
+}
 
 function RUN_ANCHOR_DIAGNOSTICS() {
   const LOG_HEADER = "⚓ ANCHOR v10 DIAGNOSTIC REPORT \n" + new Date().toLocaleString() + "\n" + "=".repeat(40);

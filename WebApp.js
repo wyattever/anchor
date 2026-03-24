@@ -17,23 +17,6 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-/**
- * includeFromDrive_
- *
- * Fetches a .js file from Drive by VAULT_MAP key and wraps in <script> tags.
- * Replaces Apps Script include() for JS files stored in GEO-PRI-001 folder.
- * Clasp cannot touch these files — they live in Drive, not the project.
- *
- * @param {string} vaultMapKey  e.g. 'JS-COMMANDS', 'JS-SCRIPTS'
- * @returns {string} <script>...</script> block
- */
-function includeFromDrive_(vaultMapKey) {
-  const fileId = getFolderIdByName_(vaultMapKey);
-  if (!fileId) throw new Error('[includeFromDrive_] VAULT_MAP has no entry for: ' + vaultMapKey);
-  const content = DriveApp.getFileById(fileId).getBlob().getDataAsString();
-  return '<script>\n' + content + '\n</script>';
-}
-
 function getAgentConfig() {
   const agents = [
     { name: 'Panto',    key: '04-PAN-ANA-001', icon: 'neurology'       },
@@ -51,6 +34,7 @@ function processMessage(data) {
   const isChat = (data.format === 'chat');
   const intent = isChat ? 'REASON' : 'INGEST';
 
+  // ── Log outbound message from PRIMARY ──────────────────────────────────────
   logMessage_({
     agent:     data.agent,
     agentId:   data.id,
@@ -68,6 +52,7 @@ function processMessage(data) {
     folderId: data.id,
     format:   data.format,
     name:     (data.topic || 'ingest_' + Date.now()) + '.' + data.format,
+    // For all non-chat formats the message field is the prompt/content
     content:  isChat ? null : data.message,
     prompt:   isChat
                 ? '[' + data.agent + ' | ' + data.id + '] ' + data.message
@@ -176,7 +161,7 @@ function setupRegistry() {
   const ss       = SpreadsheetApp.openById(NETWORK_REG_ID);
   const existing = ss.getSheetByName('REGISTRY');
   if (existing) ss.deleteSheet(existing);
-  const sheet    = ss.insertSheet('REGISTRY', 0);
+  const sheet = ss.insertSheet('REGISTRY', 0);
   sheet.appendRow(['NAME', 'AGENT_ID', 'FOLDER_ID', 'STATUS']);
   sheet.setFrozenRows(1);
   const agents = [
