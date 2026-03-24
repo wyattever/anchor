@@ -1,5 +1,5 @@
 /**
- * web.gs — ANCHOR v11.0.0 | UI Controller + Message Logger
+ * web.gs — ANCHOR v11.0.1 | UI Controller + Message Logger
  * Stage 4: Minimal footprint. All client JS loaded from Drive.
  * v11.0.0: Added readFile() server wrapper for client-side READ intent.
  */
@@ -37,7 +37,7 @@ function include(filename) {
 function includeFromDrive_(vaultMapKey) {
   const fileId = getFolderIdByName_(vaultMapKey);
   if (!fileId) {
-    console.error('[includeFromDrive_] VAULT_MAP has no entry for: ' + vaultMapKey);
+    console.warn('[includeFromDrive_] No VAULT_MAP entry for: ' + vaultMapKey);
     return '<script>console.error("ANCHOR: Failed to load ' + vaultMapKey + '")</script>';
   }
   const content = DriveApp.getFileById(fileId).getBlob().getDataAsString();
