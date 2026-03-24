@@ -1,10 +1,9 @@
-**/**
-!Index.html
-!styles.html
-!appsscript.json
-!*.gs
-!*.js
-.claspignore
 .git/**
 node_modules/**
-**/*.md
+.DS_Store
+*.md
+*.zip
+.claspignore
+.gitignore
+vault_map_client.js
+memory_client.js
