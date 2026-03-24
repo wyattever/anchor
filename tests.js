@@ -1,137 +1,205 @@
 /**
- * tests.gs — ANCHOR v10 | Full-Spectrum Diagnostic Suite
- * Validates: Routing, Vault Access, Vertex AI, and Concurrency.
+ * tests.gs — ANCHOR v9 | Diagnostic + Discovery Test Suite
+ * Consolidated from tests.js and test_discovery.js
  */
-function debugJsFiles() {
-  const keys = ['JS-COMMANDS', 'JS-SCRIPTS'];
+
+// =============================================================================
+// ANCHOR FULL DIAGNOSTICS
+// =============================================================================
+
+function RUN_ANCHOR_DIAGNOSTICS() {
+  const LOG_HEADER = '⚓ ANCHOR DIAGNOSTIC REPORT\n' +
+                     new Date().toLocaleString() + '\n' +
+                     '='.repeat(40);
+  console.log(LOG_HEADER);
+
+  const results = {
+    routing:      false,
+    vault_access: false,
+    ingest_io:    false,
+    vertex:       false,
+    vault_map:    false
+  };
+
+  try {
+    const pingRes = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({ intent: 'PING' }) } }).getContent()
+    );
+    if (pingRes.status === 'OK') {
+      console.log('✅ PING: Success');
+      results.routing = true;
+    }
+
+    console.log('Verifying Vault Access (ID: ' + VAULT_ID + ')...');
+    try {
+      const folder = DriveApp.getFolderById(VAULT_ID);
+      console.log('✅ VAULT ACCESS: ' + folder.getName());
+      results.vault_access = true;
+    } catch (fErr) {
+      console.error('❌ VAULT ACCESS FAILED: ' + fErr.message);
+    }
+
+    const map = loadVaultMap_();
+    if (Object.keys(map).length > 0) {
+      console.log('✅ VAULT_MAP: ' + Object.keys(map).length + ' entries loaded');
+      results.vault_map = true;
+    } else {
+      console.error('❌ VAULT_MAP: Empty or not initialized');
+    }
+
+    const ingestPayload = {
+      intent:   'INGEST',
+      format:   'txt',
+      folderId: VAULT_ID,
+      name:     'DIAGNOSTIC_TEST.txt',
+      content:  'ANCHOR diagnostic test file — safe to delete.',
+      meta:     { agent: 'DIAGNOSTIC', agentId: 'SYS-DIA-000', format: 'txt' }
+    };
+    const ingestRes = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify(ingestPayload) } }).getContent()
+    );
+    if (ingestRes.status === 'OK') {
+      console.log('✅ INGEST I/O: Success → ' + ingestRes.fileId);
+      results.ingest_io = true;
+    }
+
+  } catch (e) {
+    console.error('❌ DIAGNOSTICS ERROR: ' + e.message);
+  }
+
+  const passed = Object.values(results).filter(Boolean).length;
+  const total  = Object.keys(results).length;
+  console.log('='.repeat(40));
+  console.log('PASSED: ' + passed + ' / ' + total);
+  if (passed === total) {
+    console.log('🚀 All diagnostics passed');
+  } else {
+    console.log('⚠️  Some checks failed — review above');
+  }
+  return results;
+}
+
+// =============================================================================
+// AGENT WIRING
+// =============================================================================
+
+function TEST_AGENT_WIRING() {
+  const agents = [
+    { name: 'Panto',    key: '04-PAN-ANA-001' },
+    { name: 'Lexicona', key: '05-LEX-RES-777' },
+    { name: 'Synapse',  key: '06-SYN-ARC-555' }
+  ];
+  console.log('⚓ AGENT WIRING TEST');
+  console.log('='.repeat(40));
+  agents.forEach(a => {
+    const id = getFolderIdByName_(a.key);
+    id
+      ? console.log('✅ ' + a.name + ' WIRED → ' + id)
+      : console.log('❌ ' + a.name + ' MISSING — check VAULT_MAP for ' + a.key);
+  });
+}
+
+// =============================================================================
+// DRIVE JS FILES
+// =============================================================================
+
+function TEST_DRIVE_JS_FILES() {
+  const keys = [
+    'JS-COMMANDS',
+    'JS-SCRIPTS',
+    'JS-VAULT-MAP-CLIENT',
+    'JS-MEMORY-CLIENT'
+  ];
+  console.log('⚓ DRIVE JS FILE TEST');
+  console.log('='.repeat(40));
   keys.forEach(key => {
-    const fileId = getFolderIdByName_(key);
-    console.log(key + ' → fileId: ' + fileId);
-    if (fileId) {
-      try {
-        const content = DriveApp.getFileById(fileId).getBlob().getDataAsString();
-        console.log(key + ' → content length: ' + content.length);
-        console.log(key + ' → first 100 chars: ' + content.substring(0, 100));
-      } catch (err) {
-        console.error(key + ' → READ ERROR: ' + err.message);
-      }
+    try {
+      const id      = getFolderIdByName_(key);
+      if (!id) { console.log('❌ ' + key + ': no VAULT_MAP entry'); return; }
+      const content = DriveApp.getFileById(id).getBlob().getDataAsString();
+      content.length > 0
+        ? console.log('✅ ' + key + ': readable (' + content.length + ' chars)')
+        : console.log('❌ ' + key + ': file is empty');
+    } catch(e) {
+      console.log('❌ ' + key + ': ' + e.message);
     }
   });
 }
 
-function updateJsFileIds() {
-  const ss    = SpreadsheetApp.openById(getVaultMapSheetId_());
-  const sheet = ss.getSheetByName('VAULT_MAP');
-  const data  = sheet.getDataRange().getValues();
+// =============================================================================
+// STAGE 2 MIGRATION VALIDATION
+// =============================================================================
 
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === 'JS-COMMANDS') {
-      sheet.getRange(i + 1, 2).setValue('1SBs242jHt9HI9ACEoKssboLGZO-_8wDy');
-      console.log('JS-COMMANDS updated.');
-    }
-    if (data[i][0] === 'JS-SCRIPTS') {
-      sheet.getRange(i + 1, 2).setValue('1WW1YrA_XxjCAong24PFV9nJGtYRw3-W9');
-      console.log('JS-SCRIPTS updated.');
-    }
-  }
-}
+function VALIDATE_STAGE_2() {
+  const results = [];
+  const pass = (msg) => { results.push('✅ ' + msg); };
+  const fail = (msg) => { results.push('❌ ' + msg); };
 
-function RUN_ANCHOR_DIAGNOSTICS() {
-  const LOG_HEADER = "⚓ ANCHOR v10 DIAGNOSTIC REPORT \n" + new Date().toLocaleString() + "\n" + "=".repeat(40);
-  console.log(LOG_HEADER);
-  
-  const results = {
-    routing: false,
-    vault_access: false,
-    ingest_io: false,
-    vertex: false
-  };
+  const deadFiles = ['Code', '94_sync_props', '5_ingest', '4_brain'];
+  deadFiles.forEach(name => {
+    try {
+      HtmlService.createHtmlOutputFromFile(name);
+      fail('Dead file still present: ' + name);
+    } catch(e) {
+      pass('Dead file gone: ' + name);
+    }
+  });
 
   try {
-    // 1. TEST: PING (Basic Routing)
-    const pingRes = JSON.parse(doPost({postData: {contents: JSON.stringify({intent: 'PING'})}}).getContent());
-    if (pingRes.status === 'OK') {
-      console.log("✅ PING: Success");
-      results.routing = true;
-    }
-
-    // 2. TEST: GET FOLDER BY ID (Permissions & Scope)
-    console.log("Verifying Vault Access (ID: " + VAULT_ID + ")...");
-    try {
-      const folder = DriveApp.getFolderById(VAULT_ID);
-      console.log("✅ VAULT ACCESS: Success (Folder: " + folder.getName() + ")");
-      results.vault_access = true;
-    } catch (fErr) {
-      console.error("❌ VAULT ACCESS FAILED: " + fErr.message);
-    }
-
-    // 3. TEST: INGEST (Physical Write)
-    const ingestPayload = {
-      intent: 'INGEST',
-      name: 'DIAGNOSTIC_TEST_FILE',
-      content: { system: 'ANCHOR', status: 'Verifying I/O' }
-    };
-    const ingestRes = JSON.parse(doPost({postData: {contents: JSON.stringify(ingestPayload)}}).getContent());
-    if (ingestRes.status === 'OK') {
-      console.log("✅ INGEST I/O: Success");
-      results.ingest_io = true;
-      DriveApp.getFileById(ingestRes.fileId).setTrashed(true);
-    }
-
-    // 4. TEST: REASON (Vertex AI)
-    const reasonRes = JSON.parse(doPost({postData: {contents: JSON.stringify({intent: 'REASON', prompt: 'VERIFY'})}}).getContent());
-    if (reasonRes.status === 'OK') {
-      console.log("✅ VERTEX AI: Success");
-      results.vertex = true;
-    }
-
-  } catch (err) {
-    console.error("❌ DIAGNOSTIC CRASH: " + err.message);
+    const id = getFolderIdByName_('02-ACTIVE-PROJECTS');
+    id
+      ? pass('2_executor: 02-ACTIVE-PROJECTS key resolves → ' + id)
+      : fail('2_executor: 02-ACTIVE-PROJECTS key returned null');
+  } catch(e) {
+    fail('2_executor: getFolderIdByName_ threw — ' + e.message);
   }
 
-  console.log("=".repeat(40));
-  console.log("FINAL STATUS: " + (Object.values(results).every(v => v) ? "OPERATIONAL" : "DEGRADED"));
-}
-
-/**
- * ONE-OFF_VAULT_SYNC
- * Scans the physical ANCHOR-VAULT and populates the VAULT_MAP sheet.
- */
-function ONE_OFF_VAULT_SYNC() {
-  const VAULT_ID = "1PfiQ9BZ9pk2kiVJ8HUsEt4XenMy4ZkiE";
-  const mapSheetId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET_ID');
-  
-  if (!mapSheetId) {
-    throw new Error("VAULT_MAP_SHEET_ID not found. Run bootstrapVaultMap() first.");
+  try {
+    const netId = getFolderIdByName_('01-NETWORK-REGISTRY');
+    netId
+      ? pass('3_crawl: 01-NETWORK-REGISTRY key resolves → ' + netId)
+      : fail('3_crawl: 01-NETWORK-REGISTRY key returned null');
+  } catch(e) {
+    fail('3_crawl: 01-NETWORK-REGISTRY threw — ' + e.message);
   }
 
-  console.log("⚓ Starting One-Off Vault Discovery...");
-  const vault = DriveApp.getFolderById(VAULT_ID);
-  const folders = vault.getFolders();
-  const ss = SpreadsheetApp.openById(mapSheetId);
-  const sheet = ss.getSheetByName('VAULT_MAP');
-  
-  // Clear existing data (except header) to prevent duplicates during this one-off sync
-  if (sheet.getLastRow() > 1) {
-    sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).clearContent();
+  try {
+    const actId = getFolderIdByName_('02-ACTIVE-PROJECTS');
+    actId
+      ? pass('3_crawl: 02-ACTIVE-PROJECTS key resolves → ' + actId)
+      : fail('3_crawl: 02-ACTIVE-PROJECTS key returned null');
+  } catch(e) {
+    fail('3_crawl: 02-ACTIVE-PROJECTS threw — ' + e.message);
   }
 
-  let count = 0;
-  const timestamp = new Date().toISOString();
+  typeof processReasoning_ === 'function'
+    ? pass('3_crawl: processReasoning_() found in scope')
+    : fail('3_crawl: processReasoning_() not found — check 0_core.js');
 
-  while (folders.hasNext()) {
-    const folder = folders.next();
-    const name = folder.getName();
-    const id = folder.getId();
-    
-    // Log to console for your records
-    console.log(`📍 Found: ${name.padEnd(30)} ID: ${id}`);
-    
-    // Write to VAULT_MAP Sheet
-    sheet.appendRow([name.toUpperCase(), id, timestamp, 'ACTIVE']);
-    count++;
+  const props = PropertiesService.getScriptProperties().getProperties();
+  ['GEMINI_API_KEY', 'HEAL_TOKEN', 'SYNC_TOKEN'].forEach(key => {
+    (props[key] || '').length > 0
+      ? pass('99_restore: ' + key + ' is set')
+      : fail('99_restore: ' + key + ' NOT set — set manually in Script Properties UI');
+  });
+
+  try {
+    const folder = DriveApp.getFolderById(
+      PropertiesService.getScriptProperties().getProperty('VAULT_ID')
+    );
+    pass('VAULT: accessible → ' + folder.getName());
+  } catch(e) {
+    fail('VAULT: not accessible — ' + e.message);
   }
 
-  console.log(`✅ SYNC COMPLETE. ${count} folders registered in VAULT_MAP.`);
-  return `Successfully indexed ${count} folders.`;
+  const passed = results.filter(r => r.startsWith('✅')).length;
+  const failed = results.filter(r => r.startsWith('❌')).length;
+  console.log('\n⚓ STAGE 2 VALIDATION REPORT');
+  console.log('='.repeat(40));
+  results.forEach(r => console.log(r));
+  console.log('='.repeat(40));
+  console.log('PASSED: ' + passed + ' / FAILED: ' + failed);
+  failed === 0
+    ? console.log('🚀 Stage 2 clean — ready for Stage 3')
+    : console.log('⚠️  Fix failures before proceeding to Stage 3');
 }
