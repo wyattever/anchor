@@ -1,8 +1,9 @@
 /**
- * web.gs — ANCHOR v10.2.0 | UI Controller + Message Logger
+ * web.gs — ANCHOR v10.2.1 | UI Controller + Message Logger
  * Stage 4: Minimal footprint. All client JS loaded from Drive.
+ * v10.2.1: Added readFile() server wrapper for client-side READ intent.
  */
-const UI_VERSION       = 'v10.2.0';
+const UI_VERSION       = 'v10.2.1';
 const NETWORK_REG_ID   = '175th9uat0P52l9dnjAScpzdXfGl0JGoj4GyGmYuaOZ0';
 const PRIMARY_AGENT_ID = 'GEO-PRI-001';
 
@@ -100,6 +101,25 @@ function processMessage(data) {
 
   const response = doPost({ postData: { contents: JSON.stringify(payload) } });
   return JSON.parse(response.getContent());
+}
+
+// =============================================================================
+// FILE READ WRAPPER (called from client via google.script.run)
+// =============================================================================
+
+/**
+ * readFile
+ *
+ * Thin server-side wrapper so client JS can call READ intent
+ * via google.script.run instead of doPost directly.
+ *
+ * @param {object} payload  { fileId } or { folderId, name }
+ * @returns {object}        { status, name, fileId, content } or { status, message }
+ */
+function readFile(payload) {
+  return JSON.parse(
+    doPost({ postData: { contents: JSON.stringify({ intent: 'READ', ...payload }) } }).getContent()
+  );
 }
 
 // =============================================================================

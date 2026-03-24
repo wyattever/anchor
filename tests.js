@@ -2,6 +2,177 @@
  * tests.gs — ANCHOR v9 | Diagnostic + Discovery Test Suite
  * Consolidated from tests.js and test_discovery.js
  */
+
+function TEST_READ_LIST_FULL() {
+  const folderId = '1QnrCSWMim4xPhUoXYzyAkXcYYu7y3vLt'; // Panto
+  const vaultId  = '1PfiQ9BZ9pk2kiVJ8HUsEt4XenMy4ZkiE'; // ANCHOR-VAULT
+
+  const results = [];
+  const pass = (msg) => { results.push('✅ ' + msg); };
+  const fail = (msg) => { results.push('❌ ' + msg); };
+
+  // --- READ by name ---
+  const readByName = JSON.parse(
+    doPost({ postData: { contents: JSON.stringify({
+      intent:   'READ',
+      folderId: folderId,
+      name:     'number-test.txt'
+    }) } }).getContent()
+  );
+  if (readByName.status === 'OK') {
+    pass('READ by name: ' + readByName.name + ' (' + readByName.content.length + ' chars)');
+    console.log('--- content preview ---');
+    console.log(readByName.content.substring(0, 200));
+
+    // --- READ by fileId (use ID returned from name lookup) ---
+    const readById = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({
+        intent: 'READ',
+        fileId: readByName.fileId
+      }) } }).getContent()
+    );
+    readById.status === 'OK'
+      ? pass('READ by fileId: ' + readById.fileId + ' — content matches: ' + (readById.content === readByName.content))
+      : fail('READ by fileId: ' + readById.message);
+
+  } else {
+    fail('READ by name: ' + readByName.message);
+    fail('READ by fileId: skipped — no fileId available');
+  }
+
+  // --- LIST vault root ---
+  const listVault = JSON.parse(
+    doPost({ postData: { contents: JSON.stringify({
+      intent:   'LIST',
+      folderId: vaultId
+    }) } }).getContent()
+  );
+  if (listVault.status === 'OK') {
+    pass('LIST vault root: ' + listVault.count + ' files');
+    listVault.files.forEach(f => console.log('  ' + f.name + ' | ' + f.fileId));
+  } else {
+    fail('LIST vault root: ' + listVault.message);
+  }
+
+  // --- LIST Panto folder ---
+  const listPanto = JSON.parse(
+    doPost({ postData: { contents: JSON.stringify({
+      intent:   'LIST',
+      folderId: folderId
+    }) } }).getContent()
+  );
+  if (listPanto.status === 'OK') {
+    pass('LIST Panto folder: ' + listPanto.count + ' files');
+    listPanto.files.forEach(f => console.log('  ' + f.name + ' | ' + f.fileId));
+  } else {
+    fail('LIST Panto folder: ' + listPanto.message);
+  }
+
+  // --- Report ---
+  const passed = results.filter(r => r.startsWith('✅')).length;
+  const failed = results.filter(r => r.startsWith('❌')).length;
+  console.log('\n⚓ READ/LIST FULL TEST REPORT');
+  console.log('='.repeat(40));
+  results.forEach(r => console.log(r));
+  console.log('='.repeat(40));
+  console.log('PASSED: ' + passed + ' / FAILED: ' + failed);
+}
+
+function FIX_VAULT_MAP_JS() {
+  registerFolder_('JS-SCRIPTS',  '1WW1YrA_XxjCAong24PFV9nJGtYRw3-W9');
+  registerFolder_('JS-COMMANDS', '1SBs242jHt9HI9ACEoKssboLGZO-_8wDy');
+  console.log('Done. Run CHECK_DRIVE_JS() to verify.');
+}
+
+function CHECK_DRIVE_JS() {
+  console.log(includeFromDrive_('JS-SCRIPTS').substring(0, 100));
+  console.log(includeFromDrive_('JS-COMMANDS').substring(0, 100));
+}
+
+function QUICK_CHECK() {
+  console.log(typeof getFolderIdByName_);
+  console.log(typeof handleRead_);
+  console.log(typeof handleList_);
+  console.log(getAgentConfig());
+}
+
+function TEST_READ_LIST() {
+  const results = [];
+  const pass = (msg) => { results.push('✅ ' + msg); };
+  const fail = (msg) => { results.push('❌ ' + msg); };
+
+  // --- LIST test ---
+  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+  const listRes = JSON.parse(
+    doPost({ postData: { contents: JSON.stringify({
+      intent:   'LIST',
+      folderId: vaultId
+    }) } }).getContent()
+  );
+  listRes.status === 'OK'
+    ? pass('LIST: returned ' + listRes.count + ' files')
+    : fail('LIST: ' + listRes.message);
+
+  // --- INGEST then READ by fileId ---
+  const ingestRes = JSON.parse(
+    doPost({ postData: { contents: JSON.stringify({
+      intent:   'INGEST',
+      format:   'txt',
+      folderId: vaultId,
+      name:     'READ_TEST.txt',
+      content:  'read test payload — safe to delete',
+      meta:     { agent: 'TEST', agentId: 'SYS-TEST-000', format: 'txt' }
+    }) } }).getContent()
+  );
+  ingestRes.status === 'OK'
+    ? pass('INGEST for READ test: ' + ingestRes.fileId)
+    : fail('INGEST for READ test: ' + ingestRes.message);
+
+  if (ingestRes.fileId) {
+    const readRes = JSON.parse(
+      doPost({ postData: { contents: JSON.stringify({
+        intent: 'READ',
+        fileId: ingestRes.fileId
+      }) } }).getContent()
+    );
+    readRes.status === 'OK' && readRes.content === 'read test payload — safe to delete'
+      ? pass('READ by fileId: content verified')
+      : fail('READ by fileId: ' + (readRes.message || 'content mismatch'));
+  }
+
+  // --- READ by folderId + name ---
+  const readByNameRes = JSON.parse(
+    doPost({ postData: { contents: JSON.stringify({
+      intent:    'READ',
+      folderId:  vaultId,
+      name:      'READ_TEST.txt'
+    }) } }).getContent()
+  );
+  readByNameRes.status === 'OK'
+    ? pass('READ by name: ' + readByNameRes.name)
+    : fail('READ by name: ' + readByNameRes.message);
+
+  // --- READ with missing fileId ---
+  const badReadRes = JSON.parse(
+    doPost({ postData: { contents: JSON.stringify({
+      intent: 'READ'
+    }) } }).getContent()
+  );
+  badReadRes.status === 'ERROR'
+    ? pass('READ with no params: correct ERROR response')
+    : fail('READ with no params: should have returned ERROR');
+
+  // --- Report ---
+  const passed = results.filter(r => r.startsWith('✅')).length;
+  const failed = results.filter(r => r.startsWith('❌')).length;
+  console.log('\n⚓ READ/LIST TEST REPORT');
+  console.log('='.repeat(40));
+  results.forEach(r => console.log(r));
+  console.log('='.repeat(40));
+  console.log('PASSED: ' + passed + ' / FAILED: ' + failed);
+}
+
+
 function REGISTER_AND_CLEAN_JS_FILES() {
   registerFolder_('JS-SCRIPTS',   '1WW1YrA_XxjCAong24PFV9nJGtYRw3-W9');
   registerFolder_('JS-COMMANDS',  '1SBs242jHt9HI9ACEoKssboLGZO-_8wDy');
