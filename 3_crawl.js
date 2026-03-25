@@ -9,8 +9,8 @@ function CRAWL_VAULT() {
     lock.waitLock(30000);
     console.log('⚓ Starting Vault Crawl...');
 
-    // Pull from Script Properties via VAULT_MAP_SHEET_ID
-    const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET_ID');
+    // Pull from Script Properties via VAULT_MAP_SHEET
+    const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET');
     const vault   = DriveApp.getFolderById(vaultId);
     const files   = vault.getFiles();
     const manifest = [];
@@ -53,7 +53,7 @@ function generateSystemPrompt() {
 
 ### SYSTEM CONTEXT
 - GCP Project: ${props.GCP_PROJECT_ID}
-- Vault Registry: ${props.VAULT_MAP_SHEET_ID}
+- Vault Registry: ${props.VAULT_MAP_SHEET}
 - Status: ${memory.status || 'ACTIVE'}
 - Version: ${memory.anchor_version || 'v11.1.3'}
 

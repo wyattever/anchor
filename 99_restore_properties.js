@@ -19,8 +19,8 @@ function restoreAnchorProperties() {
     'MODEL_ID_ADVANCED':  'gemini-2.5-flash',
     'MODEL_ID_PRO':       'gemini-2.5-pro',
 
-    'VAULT_ID':           '1PfiQ9BZ9pk2kiVJ8HUsEt4XenMy4ZkiE',
-    'VAULT_MAP_SHEET_ID': '',
+    'ANCHOR_VAULT_ID':           '1PfiQ9BZ9pk2kiVJ8HUsEt4XenMy4ZkiE',
+    'VAULT_MAP_SHEET': '',
 
     'NETWORK_REG_ID':     '175th9uat0P52l9dnjAScpzdXfGl0JGoj4GyGmYuaOZ0'
   };
@@ -28,6 +28,6 @@ function restoreAnchorProperties() {
   PropertiesService.getScriptProperties().setProperties(props);
   console.log('⚓ ANCHOR PROPERTIES RESTORED.');
   console.log('⚓ Set GEMINI_API_KEY, HEAL_TOKEN, SYNC_TOKEN manually in Script Properties UI.');
-  console.log('⚓ Run bootstrapVaultMap() if VAULT_MAP_SHEET_ID is empty.');
+  console.log('⚓ Run bootstrapVaultMap() if VAULT_MAP_SHEET is empty.');
   console.log('⚓ Run setupRegistry() to seed the REGISTRY sheet.');
 }

@@ -2,7 +2,7 @@
  * 0_core.gs — ANCHOR v11.1.3 | API Gateway + Vertex Bridge
  * v11.1.3: Version bump to match Vault registry migration.
  */
-const VAULT_ID        = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+const ANCHOR_VAULT_ID        = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT_ID');
 const VERTEX_MODEL    = PropertiesService.getScriptProperties().getProperty('MODEL_ID') || 'gemini-2.5-flash-lite';
 const LOCK_TIMEOUT_MS = 30000;
 const GCP_PROJECT_ID  = PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID');
@@ -60,7 +60,7 @@ function doPost(e) {
 function handleIngest_(payload) {
   const format   = (payload.format || 'txt').toLowerCase();
   const name     = (payload.name   || 'ingest_' + Date.now() + '.' + format);
-  const targetId = payload.folderId || VAULT_ID;
+  const targetId = payload.folderId || ANCHOR_VAULT_ID;
   const folder   = DriveApp.getFolderById(targetId);
 
   let content;

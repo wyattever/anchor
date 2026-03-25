@@ -34,7 +34,7 @@ function commitSystemUpdate(updateNote) {
 }
 
 function ingestToVault(data, source = 'MANUAL') {
-  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET_ID');
+  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET');
   const vault   = DriveApp.getFolderById(vaultId);
 
   const dateStr  = new Date().toISOString().split('T')[0];

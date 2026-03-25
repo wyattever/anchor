@@ -4,7 +4,7 @@
  */
 
 function getPhysicalMemory() {
-  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+  const vaultId = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT_ID');
   try {
     const vault = DriveApp.getFolderById(vaultId);
     const files = vault.getFilesByName('agent_memory.json');
@@ -26,7 +26,7 @@ function getPhysicalMemory() {
 }
 
 function updatePhysicalMemory(newData) {
-  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+  const vaultId = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT_ID');
   try {
     const vault = DriveApp.getFolderById(vaultId);
     const files = vault.getFilesByName('agent_memory.json');

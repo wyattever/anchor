@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-  <?!= include('styles'); ?>
+  
+  <?!= includeFromDrive_('JS-CONFIG'); ?>
+  <?!= includeFromDrive_('JS-UI-THEME'); ?>
 </head>
 <body>
   <div id="iphone-se-container">
@@ -13,7 +15,7 @@
         <div class="status-light"></div>
         <span class="status-label">MODEL</span>
       </div>
-      <div class="header-title">ANCHOR v11.0.0</div>
+      <div class="header-title" id="ui-version-display">ANCHOR Loading...</div>
       <div class="status-group">
         <span class="status-label">VAULT</span>
         <div class="status-light"></div>
@@ -22,7 +24,7 @@
 
     <div class="btn-row">
       <div id="agent-row" style="display:flex; gap:8px; flex:1;"></div>
-      <div class="agent-sync-btn" onclick="runDiscovery()">
+      <div class="agent-sync-btn" onclick="runDeploySync()">
         <span class="material-symbols-outlined">directory_sync</span>
       </div>
     </div>
@@ -52,7 +54,10 @@
       <div id="thinking" class="thinking-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
     </div>
   </div>
+  
   <?!= includeFromDrive_('JS-COMMANDS'); ?>
+  <?!= includeFromDrive_('JS-VAULT-MAP-CLIENT'); ?>
+  <?!= includeFromDrive_('JS-MEMORY-CLIENT'); ?>
   <?!= includeFromDrive_('JS-SCRIPTS'); ?>
 </body>
 </html>
