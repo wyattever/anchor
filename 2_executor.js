@@ -1,11 +1,11 @@
 /**
- * 2_executor.gs — ANCHOR v11.0.0 | Action & File Execution
- * v11.0.0: Added handleRead_() and handleList_() for agent file I/O.
+ * 2_executor.gs — ANCHOR v11.1.3 | Action & File Execution
+ * v11.1.3: Migrated to Vault.get() for 02-ACTIVE-PROJECTS.
  */
 
 function writeProjectLog(projectName, logContent) {
-  const activeId = getFolderIdByName_('02-ACTIVE-PROJECTS');
-  if (!activeId) throw new Error('VAULT_MAP entry for 02-ACTIVE-PROJECTS not found.');
+  const activeId = Vault.get('ACTIVE_PROJECTS');
+  if (!activeId) throw new Error('VAULT_MAP entry for ACTIVE_PROJECTS not found.');
 
   const parentFolder = DriveApp.getFolderById(activeId);
   let projectFolder;
@@ -34,7 +34,7 @@ function commitSystemUpdate(updateNote) {
 }
 
 function ingestToVault(data, source = 'MANUAL') {
-  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+  const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET_ID');
   const vault   = DriveApp.getFolderById(vaultId);
 
   const dateStr  = new Date().toISOString().split('T')[0];
@@ -64,12 +64,7 @@ function ingestToVault(data, source = 'MANUAL') {
   }
 }
 
-// =============================================================================
-// READ HANDLER
-// =============================================================================
-
 function handleRead_(payload) {
-  // Primary path — read by fileId (agent gets this back from INGEST response)
   if (payload.fileId) {
     try {
       const file = DriveApp.getFileById(payload.fileId);
@@ -83,15 +78,11 @@ function handleRead_(payload) {
       return { status: 'ERROR', message: 'Could not read file: ' + e.message };
     }
   }
-
-  // Fallback path — read by name within a folder
   if (payload.folderId && payload.name) {
     try {
       const folder = DriveApp.getFolderById(payload.folderId);
       const files  = folder.getFilesByName(payload.name);
-      if (!files.hasNext()) {
-        return { status: 'ERROR', message: 'File not found: ' + payload.name };
-      }
+      if (!files.hasNext()) return { status: 'ERROR', message: 'File not found: ' + payload.name };
       const file = files.next();
       return {
         status:  'OK',
@@ -103,18 +94,11 @@ function handleRead_(payload) {
       return { status: 'ERROR', message: 'Could not read file: ' + e.message };
     }
   }
-
   return { status: 'ERROR', message: 'READ requires fileId or folderId+name.' };
 }
 
-// =============================================================================
-// LIST HANDLER
-// =============================================================================
-
 function handleList_(payload) {
-  if (!payload.folderId) {
-    return { status: 'ERROR', message: 'LIST requires folderId.' };
-  }
+  if (!payload.folderId) return { status: 'ERROR', message: 'LIST requires folderId.' };
   try {
     const folder = DriveApp.getFolderById(payload.folderId);
     const iter   = folder.getFiles();

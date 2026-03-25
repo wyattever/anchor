@@ -1,11 +1,9 @@
 /**
- * web.gs — ANCHOR v11.0.1 | UI Controller + Message Logger
- * Stage 4: Minimal footprint. All client JS loaded from Drive.
- * v11.0.0: Added readFile() server wrapper for client-side READ intent.
+ * web.gs — ANCHOR v11.1.3 | UI Controller + Message Logger
+ * v11.1.3: Fully migrated to Vault.get() registry.
  */
-const UI_VERSION       = 'v11.0.0';
-const NETWORK_REG_ID   = '175th9uat0P52l9dnjAScpzdXfGl0JGoj4GyGmYuaOZ0';
-const PRIMARY_AGENT_ID = 'GEO-PRI-001';
+const UI_VERSION       = 'v11.1.3';
+const PRIMARY_AGENT_ID = 'GEO-PRI-888';
 
 // =============================================================================
 // ENTRY POINTS
@@ -25,17 +23,11 @@ function include(filename) {
 
 /**
  * includeFromDrive_
- *
  * Fetches a JS file from Drive by VAULT_MAP key.
- * Wraps content in <script> tags for injection into Index.html.
- * Files stored in GEO-PRI-001 — agents can update them directly.
- * Changes are live on next page load — no clasp push or redeploy needed.
- *
- * @param {string} vaultMapKey  VAULT_MAP key e.g. 'JS-COMMANDS'
- * @returns {string}            <script>...</script> block
  */
 function includeFromDrive_(vaultMapKey) {
-  const fileId = getFolderIdByName_(vaultMapKey);
+  // MIGRATED: Uses Vault.get()
+  const fileId = Vault.get(vaultMapKey);
   if (!fileId) {
     console.warn('[includeFromDrive_] No VAULT_MAP entry for: ' + vaultMapKey);
     return '<script>console.error("ANCHOR: Failed to load ' + vaultMapKey + '")</script>';
@@ -50,13 +42,14 @@ function includeFromDrive_(vaultMapKey) {
 
 function getAgentConfig() {
   const agents = [
-    { name: 'Panto',    key: '04-PAN-ANA-001', icon: 'neurology'       },
-    { name: 'Lexicona', key: '05-LEX-RES-777', icon: 'manage_accounts' },
-    { name: 'Synapse',  key: '06-SYN-ARC-555', icon: 'code'            }
+    { name: 'Panto',    key: 'PANTO_ANALYTICS', icon: 'neurology'       },
+    { name: 'Lexicona', key: 'LEX_RES_777',     icon: 'manage_accounts' },
+    { name: 'Synapse',  key: 'SYN_ARC_555',     icon: 'code'            }
   ];
   return agents.map(a => ({
     name: a.name,
-    id:   getFolderIdByName_(a.key) || 'MISSING_ID',
+    // MIGRATED: Uses Vault.get()
+    id:   Vault.get(a.key) || 'MISSING_ID',
     icon: a.icon
   }));
 }
@@ -104,18 +97,9 @@ function processMessage(data) {
 }
 
 // =============================================================================
-// FILE READ WRAPPER (called from client via google.script.run)
+// FILE READ WRAPPER
 // =============================================================================
 
-/**
- * readFile
- *
- * Thin server-side wrapper so client JS can call READ intent
- * via google.script.run instead of doPost directly.
- *
- * @param {object} payload  { fileId } or { folderId, name }
- * @returns {object}        { status, name, fileId, content } or { status, message }
- */
 function readFile(payload) {
   return JSON.parse(
     doPost({ postData: { contents: JSON.stringify({ intent: 'READ', ...payload }) } }).getContent()
@@ -127,7 +111,11 @@ function readFile(payload) {
 // =============================================================================
 
 function logMessage_(data) {
-  const ss        = SpreadsheetApp.openById(NETWORK_REG_ID);
+  // MIGRATED: Pull Registry ID from Vault
+  const regId = Vault.get('NETWORK_REGISTRY');
+  if (!regId) return console.error('[WEB] NETWORK_REGISTRY ID not found.');
+  
+  const ss        = SpreadsheetApp.openById(regId);
   const timestamp = new Date().toISOString();
   const row       = [
     timestamp,
@@ -147,7 +135,7 @@ function logMessage_(data) {
 }
 
 // =============================================================================
-// FILE SYSTEM OPERATIONS (called from client via google.script.run)
+// FILE SYSTEM OPERATIONS
 // =============================================================================
 
 function listFiles(data) {

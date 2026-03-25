@@ -1,7 +1,6 @@
 /**
- * 3_crawl.gs — ANCHOR v11.0.0 | Vault Surveyor + System Prompt
- * Fixed: VAULT_MAP keys updated to match actual sheet entries.
- * Fixed: processReasoning() now calls processReasoning_() in 0_core.js.
+ * 3_crawl.gs — ANCHOR v11.1.3 | Vault Surveyor + System Prompt
+ * v11.1.3: Fully migrated to Vault.get() registry.
  */
 
 function CRAWL_VAULT() {
@@ -10,7 +9,8 @@ function CRAWL_VAULT() {
     lock.waitLock(30000);
     console.log('⚓ Starting Vault Crawl...');
 
-    const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
+    // Pull from Script Properties via VAULT_MAP_SHEET_ID
+    const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET_ID');
     const vault   = DriveApp.getFolderById(vaultId);
     const files   = vault.getFiles();
     const manifest = [];
@@ -36,21 +36,26 @@ function CRAWL_VAULT() {
   }
 }
 
+/**
+ * Generates the live system instructions for the AI.
+ * Uses Vault.get() to ensure IDs are accurate.
+ */
 function generateSystemPrompt() {
   const props  = PropertiesService.getScriptProperties().getProperties();
   const memory = getPhysicalMemory() || {};
 
-  const networkRegistryId = getFolderIdByName_('01-NETWORK-REGISTRY') || 'UNREGISTERED';
-  const activeProjectsId  = getFolderIdByName_('02-ACTIVE-PROJECTS')  || 'UNREGISTERED';
-  const archiveId         = getFolderIdByName_('ARCHIVE')              || 'UNREGISTERED';
+  // MIGRATED: Legacy folder name lookups replaced with Vault keys
+  const networkRegistryId = Vault.get('NETWORK_REGISTRY') || 'UNREGISTERED';
+  const activeProjectsId  = Vault.get('ACTIVE_PROJECTS')  || 'UNREGISTERED';
+  const archiveId         = Vault.get('ARCHIVE')           || 'UNREGISTERED';
 
   return `You are PANTO, the Primary Agent for Network Task Orchestration.
 
 ### SYSTEM CONTEXT
 - GCP Project: ${props.GCP_PROJECT_ID}
-- Primary Vault (ANCHOR-VAULT): ${props.VAULT_ID}
+- Vault Registry: ${props.VAULT_MAP_SHEET_ID}
 - Status: ${memory.status || 'ACTIVE'}
-- Version: ${memory.anchor_version || 'v11.0.0'}
+- Version: ${memory.anchor_version || 'v11.1.3'}
 
 ### VAULT REGISTRIES
 - Network Registry: ${networkRegistryId}

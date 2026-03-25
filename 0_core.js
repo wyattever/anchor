@@ -1,7 +1,6 @@
 /**
- * 0_core.gs — ANCHOR v11.0.1 | API Gateway + Vertex Bridge
- * Architecture: Fail-Fast Router with Vault-Map Resolution
- * v11.0.1: MODEL_ID read from Script Property. PROJECT_LOG removed — dead code.
+ * 0_core.gs — ANCHOR v11.1.3 | API Gateway + Vertex Bridge
+ * v11.1.3: Version bump to match Vault registry migration.
  */
 const VAULT_ID        = PropertiesService.getScriptProperties().getProperty('VAULT_ID');
 const VERTEX_MODEL    = PropertiesService.getScriptProperties().getProperty('MODEL_ID') || 'gemini-2.5-flash-lite';
@@ -34,28 +33,18 @@ function doPost(e) {
     lockAcquired = true;
 
     switch (intent) {
-      case 'INGEST': {
-        const result = handleIngest_(payload);
-        return buildResponse_({ status: result.status, fileId: result.fileId, name: result.name, url: result.url });
-      }
-      case 'REASON': {
-        const result = processReasoning_(payload);
-        return buildResponse_(result);
-      }
-      case 'READ': {
-        const result = handleRead_(payload);
-        return buildResponse_(result);
-      }
-      case 'LIST': {
-        const result = handleList_(payload);
-        return buildResponse_(result);
-      }
-      case 'PING': {
-        return buildResponse_({ status: 'OK', message: 'ANCHOR v11.0.1 is alive.' });
-      }
-      default: {
+      case 'INGEST':
+        return buildResponse_(handleIngest_(payload));
+      case 'REASON':
+        return buildResponse_(processReasoning_(payload));
+      case 'READ':
+        return buildResponse_(handleRead_(payload));
+      case 'LIST':
+        return buildResponse_(handleList_(payload));
+      case 'PING':
+        return buildResponse_({ status: 'OK', message: 'ANCHOR v11.1.3 is alive.' });
+      default:
         return buildResponse_({ status: 'ERROR', message: `Unknown intent: "${intent}".` }, 400);
-      }
     }
   } catch (err) {
     return buildResponse_({ status: 'ERROR', message: err.message }, 500);
@@ -84,7 +73,6 @@ function handleIngest_(payload) {
     mimeType = MimeType.PLAIN_TEXT;
     file     = folder.createFile(name, content, mimeType);
   }
-
   else if (format === 'csv') {
     const prompt = payload.content;
     if (!prompt) throw new Error('INGEST csv payload missing required field: content (prompt).');
@@ -93,7 +81,6 @@ function handleIngest_(payload) {
     mimeType = MimeType.CSV;
     file     = folder.createFile(name, content, mimeType);
   }
-
   else if (format === 'json') {
     const prompt = payload.content;
     if (!prompt) throw new Error('INGEST json payload missing required field: content (prompt).');
@@ -108,7 +95,6 @@ function handleIngest_(payload) {
     const blob = Utilities.newBlob(content, mimeType, name);
     file     = folder.createFile(blob);
   }
-
   else {
     content  = payload.content || '';
     mimeType = MimeType.PLAIN_TEXT;
@@ -135,39 +121,17 @@ function handleIngest_(payload) {
 // STRUCTURED CONTENT GENERATOR (CSV + JSON via Vertex AI)
 // =============================================================================
 
-/**
- * generateStructuredContent_
- *
- * Calls Vertex AI with a strict system instruction to return only raw
- * CSV or JSON — no markdown, no code fences, no explanation.
- *
- * @param {string} userPrompt  — Natural language description of desired content
- * @param {string} format      — 'csv' or 'json'
- * @returns {string}           — Raw CSV or JSON string
- */
 function generateStructuredContent_(userPrompt, format) {
   if (!GCP_PROJECT_ID) throw new Error('Script property GCP_PROJECT_ID is not configured.');
 
   const systemInstructions = format === 'csv'
-    ? 'You are a data generation assistant. Return ONLY raw CSV data with no explanation, ' +
-      'no markdown, no code fences, and no preamble. The first row must be a header row. ' +
-      'Use commas as delimiters. Every row must have the same number of columns.'
-    : 'You are a data generation assistant. Return ONLY a valid raw JSON object or array ' +
-      'with no explanation, no markdown, no code fences, and no preamble. ' +
-      'The response must be parseable by JSON.parse() with no modification.';
+    ? 'You are a data generation assistant. Return ONLY raw CSV data with no explanation, no markdown, no code fences, and no preamble. The first row must be a header row. Use commas as delimiters. Every row must have the same number of columns.'
+    : 'You are a data generation assistant. Return ONLY a valid raw JSON object or array with no explanation, no markdown, no code fences, and no preamble. The response must be parseable by JSON.parse() with no modification.';
 
   const body = {
-    system_instruction: {
-      parts: [{ text: systemInstructions }]
-    },
-    contents: [{
-      role:  'user',
-      parts: [{ text: userPrompt }]
-    }],
-    generationConfig: {
-      temperature:     0.2,
-      maxOutputTokens: 4096
-    }
+    system_instruction: { parts: [{ text: systemInstructions }] },
+    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
   };
 
   const options = {
@@ -186,14 +150,12 @@ function generateStructuredContent_(userPrompt, format) {
   }
 
   let text = raw.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  text = text
-    .replace(/^```(?:csv|json)?\n?/i, '')
-    .replace(/\n?```$/,               '')
-    .trim();
+  
+  // Safe Regex using \x60 to represent backticks
+  text = text.replace(/^\x60\x60\x60(?:csv|json)?\n?/i, '').replace(/\n?\x60\x60\x60$/, '').trim();
 
   if (!text) throw new Error('Vertex AI returned empty content for ' + format + ' generation.');
-
+  
   console.log(`[ANCHOR:GENERATE] ${format.toUpperCase()} generated. Length: ${text.length} chars`);
   return text;
 }
@@ -224,6 +186,7 @@ function processReasoning_(payload) {
 
   const response = UrlFetchApp.fetch(getVertexEndpoint_(), options);
   const raw      = JSON.parse(response.getContentText());
+  
   if (response.getResponseCode() !== 200) {
     throw new Error(`Vertex AI Error: ${JSON.stringify(raw.error)}`);
   }

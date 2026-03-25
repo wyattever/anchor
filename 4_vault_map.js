@@ -1,6 +1,7 @@
 /**
- * 4_vault_map.gs — ANCHOR v11.1.2 | Resource Registry
+ * 4_vault_map.gs — ANCHOR v11.1.3 | Resource Registry
  * Centralized ID resolution using VAULT_MAP_SHEET_ID.
+ * v11.1.3: Version bump to match global architecture update.
  */
 
 const Vault = {
