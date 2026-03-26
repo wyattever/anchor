@@ -10,7 +10,7 @@ function CRAWL_VAULT() {
     console.log('⚓ Starting Vault Crawl...');
 
     // Pull from Script Properties via VAULT_MAP_SHEET
-    const vaultId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET');
+    const vaultId = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT_ID');
     const vault   = DriveApp.getFolderById(vaultId);
     const files   = vault.getFiles();
     const manifest = [];
