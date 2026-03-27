@@ -1,27 +1,92 @@
 /**
- * tests.gs — ANCHOR v11.1.6 | Diagnostic Suite
+ * tests.gs — ANCHOR v11.3.0 | Diagnostic Suite
  */
 function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   const results = [];
   const pass = (s, m) => results.push({s, status: '✅', m});
   const fail = (s, m) => results.push({s, status: '❌', m});
   
-  console.log('⚓ ANCHOR v11.1.6 DIAGNOSTICS');
-  const props = PropertiesService.getScriptProperties().getProperties();
-  
-  // Verify Tabs
-  try {
-    const ss = SpreadsheetApp.openById(props['VAULT_MAP_SHEET']);
-    ss.getSheetByName('SYSTEM_FILES') ? pass('TABS', 'SYSTEM_FILES OK') : fail('TABS', 'SYSTEM_FILES MISSING');
-    ss.getSheetByName('VAULT_MAP') ? pass('TABS', 'VAULT_MAP OK') : fail('TABS', 'VAULT_MAP MISSING');
-  } catch(e) { fail('SHEET', e.message); }
+  console.log('⚓ ANCHOR v11.3.0 DIAGNOSTICS (Synchronized)');
+  const allProps = PropertiesService.getScriptProperties().getProperties();
+  const propKeys = Object.keys(allProps);
 
-  // Verify Key Resolution
-  Vault.sync();
-  ['PANTO', 'LEXICONA', 'SYNAPSE', 'JS-SCRIPTS'].forEach(k => {
-    Vault.get(k) ? pass('VAULT', k + ' resolved') : fail('VAULT', k + ' missing');
+  // (1) Verify all 22 Mandatory Script Properties exist by name
+  const expectedProps = [
+    '0-0-PRIMARY', '0-1-PANTO', '0-2-LEXICONA', '0-3-SYNAPSE', 
+    '01-NETWORK', '02-PROJECTS', '03-WEBAIM', '04-NCADEMI', 
+    'ANCHOR_VAULT', 'VAULT_MAP', 'MODEL_ID', 'GEMINI_API_KEY',
+    'GCP_REGION', 'GCP_PROJECT_ID', 'NETWORK-MESSAGING-LOGS',
+    'JS-CONFIG-SYS', 'JS-SCRIPTS-SYS', 'JS-COMMANDS-SYS', 'JS-UI-THEME-SYS', 
+    'JS-VAULT-MAP-CLIENT-SYS', 'JS-MEMORY-CLIENT-SYS', 'AGENT-MEMORY-SYS'
+  ];
+  
+  expectedProps.forEach(p => {
+    propKeys.includes(p) ? pass('PROP', p + ' EXISTS') : fail('PROP', p + ' MISSING');
+  });
+  
+  propKeys.forEach(p => {
+    if (!expectedProps.includes(p) && !p.includes('TOKEN') && !p.includes('NUMBER')) {
+      fail('PROP', 'UNEXPECTED EXTRA: ' + p);
+    }
   });
 
+  // (2) Verify VAULT_MAP workbook dual-registry tabs exist and contain data
+  try {
+    const mapId = allProps['VAULT_MAP'];
+    if (!mapId) throw new Error('VAULT_MAP property is missing or empty.');
+    
+    const ss = SpreadsheetApp.openById(mapId);
+    ['SYSTEM_FILES', 'ROOT'].forEach(tabName => {
+      const sheet = ss.getSheetByName(tabName);
+      if (sheet) {
+        const data = sheet.getDataRange().getValues();
+        data.length > 1 ? pass('TABS', tabName + ' OK') : fail('TABS', tabName + ' EMPTY');
+      } else {
+        fail('TABS', tabName + ' MISSING');
+      }
+    });
+  } catch(e) { fail('SHEET', 'VAULT_MAP ACCESS FAILED: ' + e.message); }
+
+  // (3) Verify Vault.get() resolves all synchronized keys
+  const vaultKeys = [
+    '02-PROJECTS', '01-NETWORK', '0-1-PANTO', '0-2-LEXICONA', '0-3-SYNAPSE',
+    'JS-COMMANDS-SYS', 'JS-CONFIG-SYS', 'JS-MEMORY-CLIENT-SYS', 'JS-SCRIPTS-SYS', 
+    'JS-UI-THEME-SYS', 'JS-VAULT-MAP-CLIENT-SYS', 'AGENT-MEMORY-SYS'
+  ];
+  Vault.sync();
+  vaultKeys.forEach(k => {
+    Vault.get(k) ? pass('VAULT', k + ' RESOLVED') : fail('VAULT', k + ' MISSING');
+  });
+
+  // (4) Verify ANCHOR_VAULT exists and resolves to valid Drive folder
+  const vaultId = allProps['ANCHOR_VAULT'];
+  if (vaultId) {
+    try {
+      const folder = DriveApp.getFolderById(vaultId);
+      pass('DRIVE', 'ANCHOR_VAULT RESOLVED: ' + folder.getName());
+    } catch(e) { fail('DRIVE', 'ANCHOR_VAULT INVALID: ' + e.message); }
+  } else {
+    fail('PROP', 'ANCHOR_VAULT MISSING');
+  }
+
+  // (5) Verify centralized agent memory location contains agent_memory.json
+  const memoryId = Vault.get('AGENT-MEMORY-SYS');
+  if (memoryId) {
+    try {
+      const folder = DriveApp.getFolderById(memoryId);
+      const files = folder.getFilesByName('agent_memory.json');
+      files.hasNext() ? pass('MEMORY', 'agent_memory.json OK') : fail('MEMORY', 'agent_memory.json MISSING');
+    } catch(e) { fail('MEMORY', 'AGENT-MEMORY-SYS FOLDER ACCESS FAILED: ' + e.message); }
+  } else {
+    fail('VAULT', 'AGENT-MEMORY-SYS ID MISSING');
+  }
+
   console.log('PASSED: ' + results.filter(r => r.status === '✅').length);
-  if (results.filter(r => r.status === '❌').length === 0) console.log('🚀 FULLY OPERATIONAL');
+  const failures = results.filter(r => r.status === '❌');
+  if (failures.length > 0) {
+    console.warn('FAILURES DETECTED:');
+    failures.forEach(f => console.error(`[${f.s}] ${f.m}`));
+  } else {
+    console.log('🚀 FULLY OPERATIONAL (v11.3.0 Synchronized)');
+  }
 }

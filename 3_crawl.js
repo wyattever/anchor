@@ -1,6 +1,6 @@
 /**
- * 3_crawl.gs — ANCHOR v11.1.3 | Vault Surveyor + System Prompt
- * v11.1.3: Fully migrated to Vault.get() registry.
+ * 3_crawl.gs — ANCHOR v11.3.0 | Vault Surveyor + System Prompt
+ * v11.3.0: Synchronized naming refactor (ANCHOR_VAULT, 01-NETWORK, 02-PROJECTS).
  */
 
 function CRAWL_VAULT() {
@@ -9,8 +9,8 @@ function CRAWL_VAULT() {
     lock.waitLock(30000);
     console.log('⚓ Starting Vault Crawl...');
 
-    // Pull from Script Properties via VAULT_MAP_SHEET
-    const vaultId = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT_ID');
+    // Pull from Script Properties via VAULT_MAP
+    const vaultId = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT');
     const vault   = DriveApp.getFolderById(vaultId);
     const files   = vault.getFiles();
     const manifest = [];
@@ -44,23 +44,21 @@ function generateSystemPrompt() {
   const props  = PropertiesService.getScriptProperties().getProperties();
   const memory = getPhysicalMemory() || {};
 
-  // MIGRATED: Legacy folder name lookups replaced with Vault keys
-  const networkRegistryId = Vault.get('NETWORK_REGISTRY') || 'UNREGISTERED';
-  const activeProjectsId  = Vault.get('ACTIVE_PROJECTS')  || 'UNREGISTERED';
-  const archiveId         = Vault.get('ARCHIVE')           || 'UNREGISTERED';
+  // Fully migrated to synchronized Vault keys
+  const networkRegistryId = Vault.get('01-NETWORK') || 'UNREGISTERED';
+  const activeProjectsId  = Vault.get('02-PROJECTS') || 'UNREGISTERED';
 
   return `You are PANTO, the Primary Agent for Network Task Orchestration.
 
 ### SYSTEM CONTEXT
 - GCP Project: ${props.GCP_PROJECT_ID}
-- Vault Registry: ${props.VAULT_MAP_SHEET}
+- Vault Registry: ${props.VAULT_MAP}
 - Status: ${memory.status || 'ACTIVE'}
-- Version: ${memory.anchor_version || 'v11.1.3'}
+- Version: ${memory.anchor_version || 'v11.3.0'}
 
 ### VAULT REGISTRIES
 - Network Registry: ${networkRegistryId}
 - Active Projects:  ${activeProjectsId}
-- Archives:         ${archiveId}
 
 All ingestion tasks must be directed to the ANCHOR-VAULT sub-folders.
 Operate with technical precision and follow the ANCHOR Protocol.`;

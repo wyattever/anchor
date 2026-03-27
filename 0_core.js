@@ -1,8 +1,8 @@
 /**
- * 0_core.gs — ANCHOR v11.1.3 | API Gateway + Vertex Bridge
- * v11.1.3: Version bump to match Vault registry migration.
+ * 0_core.gs — ANCHOR v11.3.0 | API Gateway + Vertex Bridge
+ * v11.3.0: Synchronized naming refactor (ANCHOR_VAULT).
  */
-const ANCHOR_VAULT_ID        = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT_ID');
+const ANCHOR_VAULT           = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT');
 const VERTEX_MODEL    = PropertiesService.getScriptProperties().getProperty('MODEL_ID') || 'gemini-2.5-flash-lite';
 const LOCK_TIMEOUT_MS = 30000;
 const GCP_PROJECT_ID  = PropertiesService.getScriptProperties().getProperty('GCP_PROJECT_ID');
@@ -42,7 +42,7 @@ function doPost(e) {
       case 'LIST':
         return buildResponse_(handleList_(payload));
       case 'PING':
-        return buildResponse_({ status: 'OK', message: 'ANCHOR v11.1.3 is alive.' });
+        return buildResponse_({ status: 'OK', message: 'ANCHOR v11.3.0 is alive.' });
       default:
         return buildResponse_({ status: 'ERROR', message: `Unknown intent: "${intent}".` }, 400);
     }
@@ -60,7 +60,7 @@ function doPost(e) {
 function handleIngest_(payload) {
   const format   = (payload.format || 'txt').toLowerCase();
   const name     = (payload.name   || 'ingest_' + Date.now() + '.' + format);
-  const targetId = payload.folderId || ANCHOR_VAULT_ID;
+  const targetId = payload.folderId || ANCHOR_VAULT;
   const folder   = DriveApp.getFolderById(targetId);
 
   let content;

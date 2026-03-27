@@ -1,18 +1,18 @@
 /**
- * 1_memory.gs — ANCHOR v11.1.3 | Memory Controller (Blob-Safe)
- * v11.1.3: Version bump and write-safety check for shortcuts.
+ * 1_memory.gs — ANCHOR v11.3.0 | Memory Controller (Blob-Safe)
+ * v11.3.0: Synchronized naming refactor (AGENT-MEMORY-SYS).
  */
 
 function getPhysicalMemory() {
-  const vaultId = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT_ID');
+  const memoryFolderId = Vault.get('AGENT-MEMORY-SYS') || PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT');
   try {
-    const vault = DriveApp.getFolderById(vaultId);
-    const files = vault.getFilesByName('agent_memory.json');
+    const folder = DriveApp.getFolderById(memoryFolderId);
+    const files = folder.getFilesByName('agent_memory.json');
   
     if (files.hasNext()) {
       const file = files.next();
       if (file.getMimeType() === 'application/vnd.google-apps.shortcut') {
-        console.error("⚓ MEMORY ERROR: Vault contains a shortcut, not a file.");
+        console.error("⚓ MEMORY ERROR: Memory location contains a shortcut, not a file.");
         return {};
       }
       const blob = file.getBlob();
@@ -26,10 +26,10 @@ function getPhysicalMemory() {
 }
 
 function updatePhysicalMemory(newData) {
-  const vaultId = PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT_ID');
+  const memoryFolderId = Vault.get('AGENT-MEMORY-SYS') || PropertiesService.getScriptProperties().getProperty('ANCHOR_VAULT');
   try {
-    const vault = DriveApp.getFolderById(vaultId);
-    const files = vault.getFilesByName('agent_memory.json');
+    const folder = DriveApp.getFolderById(memoryFolderId);
+    const files = folder.getFilesByName('agent_memory.json');
   
     const memory = getPhysicalMemory();
     const updatedMemory = { ...memory, ...newData, last_sync: new Date().toISOString() };
@@ -42,7 +42,7 @@ function updatePhysicalMemory(newData) {
       }
       file.setContent(jsonString);
     } else {
-      vault.createFile('agent_memory.json', jsonString, MimeType.PLAIN_TEXT);
+      folder.createFile('agent_memory.json', jsonString, MimeType.PLAIN_TEXT);
     }
     return updatedMemory;
   } catch (e) {

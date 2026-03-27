@@ -1,6 +1,6 @@
 /**
- * 4_vault_map.gs — ANCHOR v11.1.6 | Dual-Registry Bridge
- * v11.1.6: Supports separate SYSTEM_FILES and VAULT_MAP tabs.
+ * 4_vault_map.gs — ANCHOR v11.3.0 | Dual-Registry Bridge
+ * v11.3.0: Synchronized naming refactor (VAULT_MAP, ROOT).
  */
 const Vault = {
   get: function(key) {
@@ -16,11 +16,11 @@ const Vault = {
     return PropertiesService.getScriptProperties().getProperty(key);
   },
   sync: function() {
-    const vaultMapId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP_SHEET') || '1VcpXX7vXca1SZLaRVxsL7TWP54tJit25C8DkXCX0SgQ';
+    const vaultMapId = PropertiesService.getScriptProperties().getProperty('VAULT_MAP') || '1VcpXX7vXca1SZLaRVxsL7TWP54tJit25C8DkXCX0SgQ';
     try {
       const ss = SpreadsheetApp.openById(vaultMapId);
       const props = {};
-      ['SYSTEM_FILES', 'VAULT_MAP'].forEach(tabName => {
+      ['SYSTEM_FILES', 'ROOT'].forEach(tabName => {
         const sheet = ss.getSheetByName(tabName);
         if (!sheet) return;
         const data = sheet.getDataRange().getValues();
@@ -31,7 +31,7 @@ const Vault = {
         }
       });
       PropertiesService.getScriptProperties().setProperties(props);
-      console.log('[VAULT] Dual-registry synchronized.');
+      console.log('[VAULT] Synchronized to ROOT registry.');
     } catch (e) {
       console.error('[VAULT] Sync failed: ' + e.message);
     }
