@@ -1,6 +1,6 @@
 /**
- * 3_crawl.gs — ANCHOR v11.3.0 | Vault Surveyor + System Prompt
- * v11.3.0: Synchronized naming refactor (ANCHOR_VAULT, 01-NETWORK, 02-PROJECTS).
+ * 3_crawl.gs — ANCHOR v11.3.1 | Vault Surveyor + System Prompt
+ * v11.3.1: Synchronized naming refactor (ANCHOR_VAULT, 01-NETWORK, 02-PROJECTS).
  */
 
 function CRAWL_VAULT() {
@@ -42,7 +42,7 @@ function CRAWL_VAULT() {
  */
 function generateSystemPrompt() {
   const props  = PropertiesService.getScriptProperties().getProperties();
-  const memory = getPhysicalMemory() || {};
+  const memory = getAgentMemory('0-1-PANTO') || {};
 
   // Fully migrated to synchronized Vault keys
   const networkRegistryId = Vault.get('01-NETWORK') || 'UNREGISTERED';
@@ -54,7 +54,7 @@ function generateSystemPrompt() {
 - GCP Project: ${props.GCP_PROJECT_ID}
 - Vault Registry: ${props.VAULT_MAP}
 - Status: ${memory.status || 'ACTIVE'}
-- Version: ${memory.anchor_version || 'v11.3.0'}
+- Version: ${memory.anchor_version || 'v11.3.1'}
 
 ### VAULT REGISTRIES
 - Network Registry: ${networkRegistryId}

@@ -1,23 +1,23 @@
 /**
- * tests.gs — ANCHOR v11.3.0 | Diagnostic Suite
+ * tests.gs — ANCHOR v11.3.1 | Diagnostic Suite
  */
 function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   const results = [];
   const pass = (s, m) => results.push({s, status: '✅', m});
   const fail = (s, m) => results.push({s, status: '❌', m});
   
-  console.log('⚓ ANCHOR v11.3.0 DIAGNOSTICS (Synchronized)');
+  console.log('⚓ ANCHOR v11.3.1 DIAGNOSTICS (Synchronized)');
   const allProps = PropertiesService.getScriptProperties().getProperties();
   const propKeys = Object.keys(allProps);
 
-  // (1) Verify all 22 Mandatory Script Properties exist by name
+  // (1) Verify all Mandatory Script Properties exist by name
   const expectedProps = [
     '0-0-PRIMARY', '0-1-PANTO', '0-2-LEXICONA', '0-3-SYNAPSE', 
     '01-NETWORK', '02-PROJECTS', '03-WEBAIM', '04-NCADEMI', 
     'ANCHOR_VAULT', 'VAULT_MAP', 'MODEL_ID', 'GEMINI_API_KEY',
     'GCP_REGION', 'GCP_PROJECT_ID', 'NETWORK-MESSAGING-LOGS',
     'JS-CONFIG-SYS', 'JS-SCRIPTS-SYS', 'JS-COMMANDS-SYS', 'JS-UI-THEME-SYS', 
-    'JS-VAULT-MAP-CLIENT-SYS', 'JS-MEMORY-CLIENT-SYS', 'AGENT-MEMORY-SYS'
+    'JS-VAULT-MAP-CLIENT-SYS', 'JS-MEMORY-CLIENT-SYS'
   ];
   
   expectedProps.forEach(p => {
@@ -51,7 +51,7 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   const vaultKeys = [
     '02-PROJECTS', '01-NETWORK', '0-1-PANTO', '0-2-LEXICONA', '0-3-SYNAPSE',
     'JS-COMMANDS-SYS', 'JS-CONFIG-SYS', 'JS-MEMORY-CLIENT-SYS', 'JS-SCRIPTS-SYS', 
-    'JS-UI-THEME-SYS', 'JS-VAULT-MAP-CLIENT-SYS', 'AGENT-MEMORY-SYS'
+    'JS-UI-THEME-SYS', 'JS-VAULT-MAP-CLIENT-SYS'
   ];
   Vault.sync();
   vaultKeys.forEach(k => {
@@ -69,17 +69,19 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
     fail('PROP', 'ANCHOR_VAULT MISSING');
   }
 
-  // (5) Verify centralized agent memory location contains agent_memory.json
-  const memoryId = Vault.get('AGENT-MEMORY-SYS');
-  if (memoryId) {
-    try {
-      const folder = DriveApp.getFolderById(memoryId);
-      const files = folder.getFilesByName('agent_memory.json');
-      files.hasNext() ? pass('MEMORY', 'agent_memory.json OK') : fail('MEMORY', 'agent_memory.json MISSING');
-    } catch(e) { fail('MEMORY', 'AGENT-MEMORY-SYS FOLDER ACCESS FAILED: ' + e.message); }
-  } else {
-    fail('VAULT', 'AGENT-MEMORY-SYS ID MISSING');
-  }
+  // (5) Verify Per-Agent Memory (PANTO, LEXICONA, SYNAPSE)
+  ['0-1-PANTO', '0-2-LEXICONA', '0-3-SYNAPSE'].forEach(agentKey => {
+    const folderId = Vault.get(agentKey);
+    if (folderId) {
+      try {
+        const folder = DriveApp.getFolderById(folderId);
+        const files = folder.getFilesByName('agent_memory.json');
+        files.hasNext() ? pass('MEMORY', agentKey + ' agent_memory.json OK') : fail('MEMORY', agentKey + ' agent_memory.json MISSING');
+      } catch(e) { fail('MEMORY', agentKey + ' FOLDER ACCESS FAILED: ' + e.message); }
+    } else {
+      fail('VAULT', agentKey + ' ID MISSING');
+    }
+  });
 
   console.log('PASSED: ' + results.filter(r => r.status === '✅').length);
   const failures = results.filter(r => r.status === '❌');
@@ -87,6 +89,6 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
     console.warn('FAILURES DETECTED:');
     failures.forEach(f => console.error(`[${f.s}] ${f.m}`));
   } else {
-    console.log('🚀 FULLY OPERATIONAL (v11.3.0 Synchronized)');
+    console.log('🚀 FULLY OPERATIONAL (v11.3.1 Synchronized)');
   }
 }

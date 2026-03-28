@@ -92,3 +92,27 @@ function TEST_SYNC_LOGIC() {
   
   console.log("\n--- TEST SUITE COMPLETE ---");
 }
+
+/**
+ * createAgentMemoryFiles
+ * Initializes three separate agent_memory.json files in their respective folders.
+ */
+function createAgentMemoryFiles() {
+  const config = [
+    { name: 'PANTO',    id: '1QnrCSWMim4xPhUoXYzyAkXcYYu7y3vLt' },
+    { name: 'LEXICONA', id: '1L6THn33tM57B95Mpbydwoj2OpQSie0oG' },
+    { name: 'SYNAPSE',  id: '1u9ajuwB76DqRLN5gXJ3cRv2yugKi99a-' }
+  ];
+  
+  const content = JSON.stringify({ facts: [], observations: [] }, null, 2);
+  
+  config.forEach(agent => {
+    try {
+      const folder = DriveApp.getFolderById(agent.id);
+      const file = folder.createFile('agent_memory.json', content, MimeType.PLAIN_TEXT);
+      console.log(`✅ [${agent.name}] Created agent_memory.json (ID: ${file.getId()})`);
+    } catch (e) {
+      console.error(`❌ [${agent.name}] Failed: ${e.message}`);
+    }
+  });
+}
