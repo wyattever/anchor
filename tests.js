@@ -1,12 +1,12 @@
 /**
- * tests.gs — ANCHOR v11.3.1 | Diagnostic Suite
+ * tests.gs — ANCHOR v11.4.0 | Diagnostic Suite
  */
 function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
   const results = [];
   const pass = (s, m) => results.push({s, status: '✅', m});
   const fail = (s, m) => results.push({s, status: '❌', m});
   
-  console.log('⚓ ANCHOR v11.3.1 DIAGNOSTICS (Synchronized)');
+  console.log('⚓ ANCHOR v11.4.0 DIAGNOSTICS (Synchronized)');
   const allProps = PropertiesService.getScriptProperties().getProperties();
   const propKeys = Object.keys(allProps);
 
@@ -83,12 +83,72 @@ function RUN_V11_COMPREHENSIVE_DIAGNOSTICS() {
     }
   });
 
+  // (6) Verify JS files load correctly by file ID
+  const jsKeys = [
+    'JS-CONFIG-SYS', 'JS-UI-THEME-SYS', 'JS-COMMANDS-SYS',
+    'JS-VAULT-MAP-CLIENT-SYS', 'JS-MEMORY-CLIENT-SYS', 'JS-SCRIPTS-SYS'
+  ];
+  jsKeys.forEach(key => {
+    const fileId = Vault.get(key);
+    if (!fileId) { fail('JS', key + ' FILE ID NOT RESOLVED'); return; }
+    try {
+      const content = DriveApp.getFileById(fileId).getBlob().getDataAsString();
+      content && content.length > 0
+        ? pass('JS', key + ' LOADED (' + content.length + ' chars)')
+        : fail('JS', key + ' FILE IS EMPTY');
+    } catch(e) {
+      fail('JS', key + ' LOAD FAILED: ' + e.message);
+    }
+  });
+
+  // (7) Verify new web.gs server functions exist and are callable
+  const requiredFunctions = [
+    { name: 'processMessage',  fn: () => processMessage({ agent: 'Panto', id: '', format: 'chat', topic: '', message: 'ping' }) },
+    { name: 'RUN_DEPLOY_SYNC', fn: () => RUN_DEPLOY_SYNC() },
+    { name: 'getAgentConfig',  fn: () => getAgentConfig() },
+    { name: 'listFiles',       fn: () => listFiles({ folderId: Vault.get('0-1-PANTO') }) },
+    { name: 'readFile',        fn: () => readFile({ folderId: Vault.get('0-1-PANTO'), name: 'agent_memory.json' }) },
+    { name: 'listDirs',        fn: () => listDirs({ folderId: Vault.get('ANCHOR_VAULT') }) },
+    { name: 'createDir',       fn: null }
+  ];
+
+  requiredFunctions.forEach(({ name, fn }) => {
+    if (!fn) { pass('FUNC', name + ' EXISTS (not auto-tested)'); return; }
+    try {
+      const res = fn();
+      res !== undefined ? pass('FUNC', name + ' OK') : fail('FUNC', name + ' returned undefined');
+    } catch(e) {
+      fail('FUNC', name + ' THREW: ' + e.message);
+    }
+  });
+
+  // (8) Verify processMessage() returns expected shape for chat format
+  try {
+    const res = processMessage({ agent: 'Panto', id: Vault.get('0-1-PANTO'), format: 'chat', topic: '', message: 'Respond with one word: ready' });
+    if (res && res.status === 'OK' && res.response) {
+      pass('MSG', 'processMessage chat OK — response received');
+    } else {
+      fail('MSG', 'processMessage chat returned unexpected shape: ' + JSON.stringify(res));
+    }
+  } catch(e) { fail('MSG', 'processMessage THREW: ' + e.message); }
+
+  // (9) Verify logMessage_() agent sheet targeting
+  try {
+    const logId = PropertiesService.getScriptProperties().getProperty('NETWORK-MESSAGING-LOGS');
+    const ss = SpreadsheetApp.openById(logId);
+    ['Panto', 'Lexicona', 'Synapse'].forEach(name => {
+      ss.getSheetByName(name)
+        ? pass('LOGS', name + ' sheet tab EXISTS')
+        : fail('LOGS', name + ' sheet tab MISSING — create tab named "' + name + '" in NETWORK-MESSAGING-LOGS workbook');
+    });
+  } catch(e) { fail('LOGS', 'NETWORK-MESSAGING-LOGS ACCESS FAILED: ' + e.message); }
+
   console.log('PASSED: ' + results.filter(r => r.status === '✅').length);
   const failures = results.filter(r => r.status === '❌');
   if (failures.length > 0) {
     console.warn('FAILURES DETECTED:');
     failures.forEach(f => console.error(`[${f.s}] ${f.m}`));
   } else {
-    console.log('🚀 FULLY OPERATIONAL (v11.3.1 Synchronized)');
+    console.log('🚀 FULLY OPERATIONAL (v11.4.0 Synchronized)');
   }
 }

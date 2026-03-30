@@ -36,8 +36,7 @@ function restoreAnchorProperties() {
     'JS-COMMANDS-SYS':    '1SBs242jHt9HI9ACEoKssboLGZO-_8wDy',
     'JS-UI-THEME-SYS':    '1T-XNLrCFsuHN0BUvKOBjFhuleqN7j-7t',
     'JS-VAULT-MAP-CLIENT-SYS': '1xbHd5yKoP3wCAbM3mbOXyrkRtysDL6LJ',
-    'JS-MEMORY-CLIENT-SYS': '1O2tVV5IyF3KKrvh1fgFiFo6iRogSnTtw',
-    'AGENT-MEMORY-SYS':   '1k6BYtrZSGx5zgQccpiW1NNXCnIXqNRqj'
+    'JS-MEMORY-CLIENT-SYS': '1O2tVV5IyF3KKrvh1fgFiFo6iRogSnTtw'
   };
 
   PropertiesService.getScriptProperties().setProperties(props);
